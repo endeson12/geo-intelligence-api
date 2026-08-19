@@ -69,7 +69,7 @@ def run_benchmark(database_url: str, dataset_size: int) -> dict[str, Any]:
                 SELECT id,
                     ST_SetSRID(
                         ST_MakePoint(
-                            -42.95 + (id % 1000) * 0.0003,
+                            -42.95 + MOD(id, 1000) * 0.0003,
                             -5.24 + (id / 1000) * 0.0003
                         ),
                         4326

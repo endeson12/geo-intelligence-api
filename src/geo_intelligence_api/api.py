@@ -101,18 +101,29 @@ def coverage(
     raio_m: float = Query(gt=0, le=500_000),
     tipo: str | None = None,
 ) -> dict[str, Any]:
-    base_sql = """SELECT COUNT(*) AS total FROM facilities
+    base_sql = """SELECT id, nome, tipo, fonte, ST_X(geom) AS lon, ST_Y(geom) AS lat
+        FROM facilities
         WHERE ST_DWithin(
             geom::geography,
             ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography,
             :raio
         )"""
-    sql = text(base_sql + (" AND tipo = :tipo" if tipo else ""))
+    sql = text(base_sql + (" AND tipo = :tipo" if tipo else "") + " ORDER BY id LIMIT 1000")
     params: dict[str, Any] = {"lat": lat, "lon": lon, "raio": raio_m}
     if tipo:
         params["tipo"] = tipo
-    total = db.execute(sql, params).scalar_one()
-    return {"centro": {"lat": lat, "lon": lon}, "raio_m": raio_m, "tipo": tipo, "total": total}
+    rows = db.execute(sql, params).mappings().all()
+    features = [_feature(row) for row in rows]
+    return {
+        "type": "FeatureCollection",
+        "features": features,
+        "summary": {
+            "centro": {"lat": lat, "lon": lon},
+            "raio_m": raio_m,
+            "tipo": tipo,
+            "total": len(features),
+        },
+    }
 
 
 @router.post("/import/geojson", status_code=status.HTTP_201_CREATED)

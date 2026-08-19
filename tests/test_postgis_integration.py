@@ -67,7 +67,9 @@ def test_consultas_e_importacao_em_postgis_real() -> None:
         params={"lat": -5.091, "lon": -42.801, "raio_m": 5_000, "tipo": "saude"},
     )
     assert coverage.status_code == 200
-    assert coverage.json()["total"] == 1
+    assert coverage.json()["type"] == "FeatureCollection"
+    assert coverage.json()["summary"]["total"] == 1
+    assert coverage.json()["features"][0]["properties"]["nome"] == "Unidade A"
 
     imported = client.post(
         "/api/v1/import/geojson",

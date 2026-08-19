@@ -74,7 +74,7 @@ def fetch() -> dict[str, Any]:
     url = f"{OVERPASS_URL}?{urllib.parse.urlencode({'data': QUERY})}"
     request = urllib.request.Request(  # noqa: S310
         url,
-        headers={"User-Agent": "geo-intelligence-api/0.1 (+https://github.com/endeson12)"},
+        headers={"User-Agent": "geo-intelligence-api/0.2 (+https://github.com/endeson12)"},
     )
     with urllib.request.urlopen(request, timeout=60) as response:  # noqa: S310
         return json.load(response)

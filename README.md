@@ -6,6 +6,21 @@ API geoespacial de referência para equipes B2B/B2G explorarem acesso a equipame
 
 Decisões sobre saúde, educação, assistência e segurança frequentemente dependem de perguntas espaciais — “o que existe nesta área?”, “qual instalação está mais perto?” e “quantas estão cobertas por este raio?”. Esta API oferece contratos GeoJSON simples sem esconder a semântica espacial executada pelo banco.
 
+## Demonstração visual
+
+![Mapa interativo de cobertura territorial com 20 pontos da amostra OSM em Teresina](docs/map-demo.png)
+
+A captura reproduz a interface local com a fotografia OpenStreetMap incluída no repositório. O mapa permite filtrar o tipo e clicar em qualquer ponto para consultar a cobertura por raio com `ST_DWithin`. **Não há deploy público permanente neste momento**; a execução reproduzível usa Docker Compose.
+
+### Capacidades demonstradas
+
+- ingestão de GeoJSON com validação WGS84, autenticação e transação atômica;
+- consultas por `bbox`, proximidade e cobertura, retornadas como `FeatureCollection`;
+- índice GiST e funções espaciais executadas em PostGIS real na CI;
+- relatório versionado de qualidade e proveniência da amostra pública;
+- mapa web, logs JSON, request ID, métricas e health checks;
+- imagem não-root verificada com Trivy contra vulnerabilidades críticas conhecidas.
+
 ## Arquitetura
 
 ```mermaid
@@ -23,6 +38,8 @@ validação e observabilidade]
 - PostGIS: `ST_DWithin`, `ST_DistanceSphere`, envelope e índice GiST.
 - Alembic: infraestrutura versionada, incluindo extensão PostGIS.
 
+Detalhes e decisões: [arquitetura](docs/architecture.md), [ADRs](docs/decisions/) e [runbook de operação](docs/operations.md).
+
 ## Quickstart
 
 Pré-requisitos: Docker com Compose. Copie `.env.example` para `.env` e troque senhas/chave.
@@ -39,7 +56,7 @@ Para importar a fotografia OpenStreetMap incluída, preservando a atribuição:
 ```bash
 curl -fsS -X POST http://localhost:8000/api/v1/import/geojson \
   -H 'Content-Type: application/json' \
-  -H "X-API-Key: $API_KEY" \
+  -H "X-API-Key: ${API_KEY}" \
   --data-binary @data/osm-teresina-health.geojson
 ```
 
@@ -54,7 +71,7 @@ Para desenvolvimento local: `uv python install 3.12 && uv sync --all-groups`, co
 | GET | `/health/ready` | Banco alcançável |
 | GET | `/api/v1/facilities?tipo=&bbox=xmin,ymin,xmax,ymax` | FeatureCollection filtrada |
 | GET | `/api/v1/facilities/nearest?lat=&lon=&limit=&raio_m=` | Vizinhos por distância geodésica |
-| GET | `/api/v1/coverage?lat=&lon=&raio_m=&tipo=` | Contagem no raio |
+| GET | `/api/v1/coverage?lat=&lon=&raio_m=&tipo=` | FeatureCollection e resumo dos pontos no raio |
 | POST | `/api/v1/import/geojson` | Importação atômica autenticada por `X-API-Key` |
 
 O import aceita apenas `FeatureCollection` de `Point`, coordenadas EPSG:4326 e propriedades `nome`, `tipo`, `fonte`. Limite: 10 mil feições por requisição.
@@ -66,6 +83,7 @@ O import aceita apenas `FeatureCollection` de `Point`, coordenadas EPSG:4326 e p
 - Request ID propagado, logs JSON, métricas Prometheus e headers defensivos ajudam auditoria.
 - A origem (`fonte`) acompanha cada registro. O seed é explicitamente sintético.
 - A amostra OSM registra licença, timestamp da base e identificador de cada elemento; consulte [fontes e qualidade dos dados](docs/data-sources.md).
+- O [relatório de qualidade versionado](docs/data-quality-report.json) registra 20 feições válidas e nenhuma duplicidade exata na fotografia incluída; isso não comprova completude ou acurácia posicional.
 - Minimize dados pessoais e coordenadas sensíveis; defina base legal, retenção, controle de acesso e avaliação de impacto conforme LGPD. Esta aplicação não deve armazenar dados pessoais sem governança adicional.
 - Tiles do mapa usam OpenStreetMap no navegador; avalie política de privacidade e provedor próprio antes de produção.
 
@@ -80,10 +98,11 @@ uv run mypy
 uv run pytest --cov=geo_intelligence_api
 uv run alembic upgrade head
 uv run python scripts/fetch_osm.py --output data/osm-teresina-health.geojson
+uv run python scripts/data_quality.py data/osm-teresina-health.geojson
 docker compose config
 ```
 
-A CI executa qualidade, migração real em PostGIS e testes. Resultados locais devem ser reportados pelo executor; este README não declara métricas históricas.
+A CI executa qualidade, relatório dos dados, migração e testes em PostGIS real, build da imagem e Trivy. Resultados locais devem ser reportados pelo executor; este README não transforma uma execução pontual em métrica de produção.
 
 ## Limitações
 
@@ -103,4 +122,4 @@ A CI executa qualidade, migração real em PostGIS e testes. Resultados locais d
 
 ## Licença
 
-MIT. Consulte [LICENSE](LICENSE). Contribuições seguem [CONTRIBUTING.md](CONTRIBUTING.md).
+MIT. Consulte [LICENSE](LICENSE). Contribuições seguem [CONTRIBUTING.md](CONTRIBUTING.md) e as versões estão em [CHANGELOG.md](CHANGELOG.md).

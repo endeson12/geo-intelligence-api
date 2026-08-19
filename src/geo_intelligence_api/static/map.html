@@ -1,1 +1,122 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Mapa | Geo Intelligence API</title><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"><style>html,body,#map{height:100%;margin:0}.panel{position:absolute;z-index:999;background:#fff;padding:12px;margin:12px;border-radius:8px;font:14px system-ui;box-shadow:0 2px 10px #0003}</style></head><body><div class="panel"><strong>Infraestruturas sintéticas — Teresina</strong><br>Dados demonstrativos, sem representação oficial.</div><div id="map"></div><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script>const m=L.map('map').setView([-5.09,-42.80],12);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(m);fetch('/api/v1/facilities').then(r=>r.json()).then(d=>L.geoJSON(d,{onEachFeature:(f,l)=>l.bindPopup(`<b>${f.properties.nome}</b><br>${f.properties.tipo}`)}).addTo(m)).catch(()=>L.popup().setLatLng(m.getCenter()).setContent('API temporariamente indisponível').openOn(m));</script></body></html>
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mapa de cobertura | Geo Intelligence API</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <style>
+    :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+    * { box-sizing: border-box; }
+    html, body, #map { height: 100%; margin: 0; }
+    body { background: #07111f; }
+    #map { z-index: 0; }
+    .panel {
+      position: absolute; z-index: 900; top: 18px; left: 18px; width: min(390px, calc(100% - 36px));
+      padding: 20px; border: 1px solid #334155; border-radius: 16px;
+      background: rgba(7, 17, 31, .94); color: #e2e8f0; box-shadow: 0 18px 48px #02061780;
+      backdrop-filter: blur(10px);
+    }
+    .eyebrow { color: #5eead4; font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+    h1 { margin: 6px 0 8px; font-size: 23px; line-height: 1.15; }
+    p { margin: 0 0 14px; color: #94a3b8; font-size: 13px; line-height: 1.45; }
+    .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    label { color: #cbd5e1; font-size: 11px; font-weight: 700; }
+    select, input {
+      width: 100%; margin-top: 5px; padding: 9px 10px; border: 1px solid #475569; border-radius: 9px;
+      background: #0f172a; color: #f8fafc;
+    }
+    .status { margin-top: 14px; padding: 11px 12px; border-left: 3px solid #2dd4bf; border-radius: 6px; background: #0f172a; font-size: 13px; }
+    .status strong { color: #5eead4; }
+    .note { margin-top: 12px; color: #64748b; font-size: 11px; }
+    .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #0f172a; color: #e2e8f0; }
+    @media (max-width: 640px) { .panel { top: 10px; left: 10px; width: calc(100% - 20px); padding: 15px; } h1 { font-size: 19px; } }
+  </style>
+</head>
+<body>
+  <aside class="panel" aria-label="Controles do mapa">
+    <div class="eyebrow">Demonstração geoespacial</div>
+    <h1>Cobertura de equipamentos</h1>
+    <p>Explore os pontos carregados e clique no mapa para executar uma consulta espacial no PostGIS.</p>
+    <div class="controls">
+      <label>Tipo
+        <select id="tipo">
+          <option value="">Todos</option>
+          <option value="hospital">Hospital</option>
+          <option value="clinica">Clínica</option>
+          <option value="consultorio">Consultório</option>
+          <option value="saude">Saúde — seed</option>
+        </select>
+      </label>
+      <label>Raio
+        <select id="raio">
+          <option value="1000">1 km</option>
+          <option value="2000" selected>2 km</option>
+          <option value="5000">5 km</option>
+        </select>
+      </label>
+    </div>
+    <div id="status" class="status">Carregando equipamentos…</div>
+    <div class="note">Seed sintético ou amostra OSM, conforme o lote importado. Não é cadastro oficial.</div>
+  </aside>
+  <div id="map" role="application" aria-label="Mapa interativo de cobertura"></div>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const map = L.map('map', { zoomControl: false }).setView([-5.09, -42.80], 13);
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors', maxZoom: 19
+    }).addTo(map);
+
+    const status = document.getElementById('status');
+    const tipo = document.getElementById('tipo');
+    const raio = document.getElementById('raio');
+    let facilitiesLayer = L.geoJSON().addTo(map);
+    let coverageLayer = L.geoJSON().addTo(map);
+    let radiusLayer;
+
+    const popup = (feature) => {
+      const props = feature.properties || {};
+      const distance = props.distancia_m ? `<br>${Math.round(props.distancia_m)} m do ponto` : '';
+      return `<strong>${props.nome || 'Sem nome'}</strong><br>${props.tipo || 'sem tipo'}${distance}`;
+    };
+
+    async function loadFacilities() {
+      const query = tipo.value ? `?tipo=${encodeURIComponent(tipo.value)}` : '';
+      status.textContent = 'Consultando a API…';
+      try {
+        const response = await fetch(`/api/v1/facilities${query}`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        facilitiesLayer.clearLayers().addData(data);
+        facilitiesLayer.eachLayer(layer => layer.bindPopup(popup(layer.feature)));
+        status.innerHTML = `<strong>${data.features.length}</strong> equipamentos exibidos. Clique no mapa para analisar cobertura.`;
+      } catch (error) {
+        status.textContent = `API indisponível: ${error.message}`;
+      }
+    }
+
+    map.on('click', async ({ latlng }) => {
+      const radius = Number(raio.value);
+      const params = new URLSearchParams({ lat: latlng.lat, lon: latlng.lng, raio_m: radius });
+      if (tipo.value) params.set('tipo', tipo.value);
+      status.textContent = 'Executando ST_DWithin no PostGIS…';
+      try {
+        const response = await fetch(`/api/v1/coverage?${params}`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        coverageLayer.clearLayers().addData(data);
+        coverageLayer.eachLayer(layer => layer.bindPopup(popup(layer.feature)));
+        if (radiusLayer) radiusLayer.remove();
+        radiusLayer = L.circle(latlng, { radius, color: '#14b8a6', fillColor: '#2dd4bf', fillOpacity: .12 }).addTo(map);
+        status.innerHTML = `<strong>${data.summary.total}</strong> equipamentos em ${(radius / 1000).toLocaleString('pt-BR')} km do ponto selecionado.`;
+      } catch (error) {
+        status.textContent = `Consulta de cobertura falhou: ${error.message}`;
+      }
+    });
+
+    tipo.addEventListener('change', loadFacilities);
+    loadFacilities();
+  </script>
+</body>
+</html>

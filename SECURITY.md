@@ -11,3 +11,23 @@ Não publique vulnerabilidades em issues. Envie um aviso privado ao mantenedor p
 ## Modelo de ameaça resumido
 
 Principais riscos: chave de importação exposta, GeoJSON abusivo, exaustão por consultas espaciais, SQL injection, vazamento de localização e dependências/tiles externos. Há validação e limite de payload lógico, SQL parametrizado, transação, usuário de contêiner não-root e headers defensivos. Para produção ainda são obrigatórios TLS no proxy, OIDC/RBAC, rate limiting, limites de corpo, rotação de segredo, backups testados e observabilidade protegida.
+
+## Ativos e fronteiras de confiança
+
+- **Ativos:** banco espacial, credencial de importação, proveniência dos datasets, logs e metadados de localização.
+- **Entrada pública:** consultas de leitura, parâmetros espaciais e carregamento do mapa.
+- **Entrada privilegiada:** importação de GeoJSON; a API key é apenas um controle demonstrativo.
+- **Terceiros:** CDN do Leaflet, tiles OpenStreetMap, imagens-base e dependências Python.
+
+## Controles verificáveis
+
+- validação Pydantic e limites WGS84/quantidade;
+- consultas parametrizadas e índice espacial;
+- importação atômica com rollback;
+- contêiner não-root, filesystem somente leitura e `no-new-privileges`;
+- CI com Ruff, mypy, testes contra PostGIS, build da imagem e Trivy para vulnerabilidades críticas conhecidas;
+- `.env.example` sem segredo operacional.
+
+## Riscos aceitos no protótipo
+
+Não há OIDC, RBAC, rate limiting, WAF, criptografia de backup nem trilha de auditoria persistente. `/metrics` também deve ficar fora da internet pública em uma implantação real. Essas limitações impedem classificar o projeto como pronto para produção.

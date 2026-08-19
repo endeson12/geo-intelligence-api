@@ -22,10 +22,26 @@ jobs:
       - uses: astral-sh/setup-uv@v7
         with: {python-version: "3.12", enable-cache: true}
       - run: uv sync --all-groups --frozen
+      - name: Auditar dependências Python
+        run: uv run pip-audit
+      - name: Gerar SBOM CycloneDX
+        run: uv run cyclonedx-py environment --output-reproducible --of JSON -o sbom.cdx.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom-cyclonedx
+          path: sbom.cdx.json
       - run: uv run ruff check . && uv run ruff format --check .
       - run: uv run mypy
       - run: uv run python scripts/data_quality.py data/osm-teresina-health.geojson --output /tmp/data-quality-report.json
       - run: uv run alembic upgrade head
+      - name: Importar limite oficial do IBGE
+        run: uv run python scripts/import_territories.py data/ibge-teresina-boundary.geojson
+      - name: Benchmark GiST reproduzível
+        run: uv run python scripts/benchmark_postgis.py --output benchmark-postgis.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-postgis
+          path: benchmark-postgis.json
       - run: uv run pytest --cov=geo_intelligence_api --cov-report=term-missing
   image:
     runs-on: ubuntu-latest

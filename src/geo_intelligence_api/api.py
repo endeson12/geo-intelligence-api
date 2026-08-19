@@ -1,15 +1,18 @@
+import hashlib
+import json
 from typing import Annotated, Any
+from uuid import uuid4
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response, status
 from geoalchemy2.shape import from_shape
 from shapely.geometry import Point
 from sqlalchemy import text
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from .config import Settings, get_settings
 from .database import get_db
-from .models import Facility
+from .models import DatasetBatch, Facility
 from .schemas import FeatureCollectionResponse, GeoJSONFeatureCollection
 
 router = APIRouter()
@@ -126,30 +129,185 @@ def coverage(
     }
 
 
+@router.get("/datasets")
+def datasets(db: DB) -> list[dict[str, Any]]:
+    rows = (
+        db.execute(
+            text(
+                """SELECT id, content_sha256, source, source_version, license,
+                feature_count, imported_at
+                FROM dataset_batches
+                ORDER BY imported_at DESC, id DESC
+                LIMIT 100"""
+            )
+        )
+        .mappings()
+        .all()
+    )
+    return [dict(row) for row in rows]
+
+
+@router.get("/territories/{code}/coverage")
+def territory_coverage(
+    code: str,
+    db: DB,
+    tipo: str | None = Query(None, max_length=80),
+) -> dict[str, Any]:
+    sql = text(
+        """SELECT t.code, t.name, t.source, t.source_url, t.license,
+        t.acquired_at, t.quality, ST_AsGeoJSON(t.geom)::json AS geometry,
+        COALESCE(
+            json_agg(
+                json_build_object(
+                    'type', 'Feature',
+                    'id', f.id,
+                    'geometry', ST_AsGeoJSON(f.geom)::json,
+                    'properties', json_build_object(
+                        'id', f.id, 'nome', f.nome, 'tipo', f.tipo, 'fonte', f.fonte
+                    )
+                ) ORDER BY f.id
+            ) FILTER (WHERE f.id IS NOT NULL),
+            '[]'::json
+        ) AS features
+        FROM territories t
+        LEFT JOIN facilities f
+          ON ST_Covers(t.geom, f.geom)
+         AND (CAST(:tipo AS varchar) IS NULL OR f.tipo = CAST(:tipo AS varchar))
+        WHERE t.code = :code
+        GROUP BY t.code, t.name, t.source, t.source_url, t.license,
+                 t.acquired_at, t.quality, t.geom"""
+    )
+    params: dict[str, Any] = {"code": code, "tipo": tipo}
+    row = db.execute(sql, params).mappings().first()
+    if not row:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "território não encontrado")
+
+    item = dict(row)
+    geometry = item["geometry"]
+    features = item["features"]
+    if isinstance(geometry, str):
+        geometry = json.loads(geometry)
+    if isinstance(features, str):
+        features = json.loads(features)
+    return {
+        "territorio": {
+            "codigo": item["code"],
+            "nome": item["name"],
+            "fonte": item["source"],
+            "url_fonte": item["source_url"],
+            "licenca": item["license"],
+            "adquirido_em": item["acquired_at"],
+            "qualidade": item["quality"],
+            "geometry": geometry,
+        },
+        "equipamentos": {"type": "FeatureCollection", "features": features},
+        "resumo": {"total": len(features), "tipo": tipo, "predicado": "ST_Covers"},
+    }
+
+
 @router.post("/import/geojson", status_code=status.HTTP_201_CREATED)
 def import_geojson(
     payload: GeoJSONFeatureCollection,
     db: DB,
+    response: Response,
     x_api_key: Annotated[str | None, Header()] = None,
     settings: Settings = Depends(get_settings),
-) -> dict[str, int]:
+) -> dict[str, Any]:
     if not x_api_key or x_api_key != settings.api_key:
         raise HTTPException(
             status.HTTP_401_UNAUTHORIZED, "API key inválida", headers={"WWW-Authenticate": "ApiKey"}
         )
+    canonical_payload = json.dumps(
+        payload.model_dump(mode="json"), ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    ).encode()
+    content_sha256 = hashlib.sha256(canonical_payload).hexdigest()
+    existing = (
+        db.execute(
+            text(
+                "SELECT id, feature_count FROM dataset_batches "
+                "WHERE content_sha256 = :content_sha256"
+            ),
+            {"content_sha256": content_sha256},
+        )
+        .mappings()
+        .first()
+    )
+    if existing:
+        response.status_code = status.HTTP_200_OK
+        existing_id = existing["id"] if isinstance(existing, dict) else existing.id
+        feature_count = (
+            existing["feature_count"] if isinstance(existing, dict) else existing.feature_count
+        )
+        return {
+            "status": "ja_importado",
+            "lote_id": existing_id,
+            "dataset_hash": content_sha256,
+            "importados": 0,
+            "rejeitados": 0,
+            "duplicados": feature_count,
+        }
+
+    batch = DatasetBatch(
+        id=str(uuid4()),
+        content_sha256=content_sha256,
+        source=payload.metadata.source,
+        source_version=payload.metadata.source_version,
+        license=payload.metadata.license,
+        feature_count=len(payload.features),
+    )
     items = [
         Facility(
             nome=f.properties.nome,
             tipo=f.properties.tipo,
             fonte=f.properties.fonte,
+            batch_id=batch.id,
             geom=from_shape(Point(f.geometry.coordinates), srid=4326),
         )
         for f in payload.features
     ]
     try:
+        db.add(batch)
+        db.flush()
         db.add_all(items)
         db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        concurrent = (
+            db.execute(
+                text(
+                    "SELECT id, feature_count FROM dataset_batches "
+                    "WHERE content_sha256 = :content_sha256"
+                ),
+                {"content_sha256": content_sha256},
+            )
+            .mappings()
+            .first()
+        )
+        if not concurrent:
+            raise HTTPException(500, "importação revertida") from exc
+        response.status_code = status.HTTP_200_OK
+        concurrent_id = concurrent["id"] if isinstance(concurrent, dict) else concurrent.id
+        concurrent_count = (
+            concurrent["feature_count"]
+            if isinstance(concurrent, dict)
+            else concurrent.feature_count
+        )
+        return {
+            "status": "ja_importado",
+            "lote_id": concurrent_id,
+            "dataset_hash": content_sha256,
+            "importados": 0,
+            "rejeitados": 0,
+            "duplicados": concurrent_count,
+        }
     except SQLAlchemyError as exc:
         db.rollback()
         raise HTTPException(500, "importação revertida") from exc
-    return {"importados": len(items)}
+    return {
+        "status": "importado",
+        "lote_id": batch.id,
+        "dataset_hash": content_sha256,
+        "importados": len(items),
+        "rejeitados": 0,
+        "duplicados": 0,
+    }

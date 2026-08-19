@@ -1,0 +1,312 @@
+{
+  "type": "FeatureCollection",
+  "metadata": {
+    "source": "OpenStreetMap contributors",
+    "license": "ODbL 1.0",
+    "generated_from": "Overpass API",
+    "timestamp_osm_base": "2026-08-19T13:37:17Z",
+    "warning": "Amostra comunitária; não é cadastro oficial nem garantia de completude."
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -42.8090502,
+          -5.0865343
+        ]
+      },
+      "properties": {
+        "nome": "MedPlan",
+        "tipo": "consultorio",
+        "fonte": "OpenStreetMap contributors (ODbL), snapshot 2026-08-19T13:37:17Z; osm:node/3672560830"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -42.8075264,
+          -5.0908082
+        ]
+      },
+      "properties": {
+        "nome": "UltraClinica",
+        "tipo": "clinica",
+        "fonte": "OpenStreetMap contributors (ODbL), snapshot 2026-08-19T13:37:17Z; osm:node/3884237610"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -42.8115462,
+          -5.0857257
+        ]
+      },
+      "properties": {
+        "nome": "CCDT-Centro Clínico de Diagnóstico de Teresina",
+        "tipo": "clinica",
+        "fonte": "OpenStreetMap contributors (ODbL), snapshot 2026-08-19T13:37:17Z; osm:node/3884240827"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -42.8069365,
+          -5.0909804
+        ]
+      },
+      "properties": {
+        "nome": "ProntoOftalmo",
+        "tipo": "clinica",
+        "fonte": "OpenStreetMap contributors (ODbL), snapshot 2026-08-19T13:37:17Z; osm:node/3884240871"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -42.8024465,
+          -5.0901506
+        ]
+      },
+      "properties": {
+        "nome": "Hospital São Marcos",
+        "tipo": "hospital",
+        "fonte": "OpenStreetMap contributors (ODbL), snapshot 2026-08-19T13:37:17Z; osm:node/4121292899"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -42.7854768,
+          -5.1316575
+        ]
+      },
+      "properties": {
+        "nome": "UBS São Camilo",
+        "tipo": "clinica",
+        "fonte": "OpenStreetMap contributors (ODbL), snapshot 2026-08-19T13:37:17Z; osm:node/4261257766"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -42.8042207,
+          -5.091299
+        ]
+      },
+      "properties": {
+        "nome": "Clínica Otorrinos 24 horas",
+        "tipo": "clinica",
+        "fonte": "OpenStreetMap contributors (ODbL), snapshot 2026-08-19T13:37:17Z; osm:node/4370483694"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -42.8081562,
+          -5.0900387
+        ]
+      },
+      "properties": {
+        "nome": "Prontomed",
+        "tipo": "hospital",
+        "fonte": "OpenStreetMap contributors (ODbL), snapshot 2026-08-19T13:37:17Z; osm:node/4469792662"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -42.7902885,
+          -5.1015591
+        ]
+      },
+      "properties": {
+        "nome": "Posto de Saúde do Cristo Rei",
+        "tipo": "clinica",
+        "fonte": "OpenStreetMap contributors (ODbL), snapshot 2026-08-19T13:37:17Z; osm:node/4487134221"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -42.8073558,
+          -5.0856713
+        ]
+      },
+      "properties": {
+        "nome": "Clínica Uros",
+        "tipo": "consultorio",
+        "fonte": "OpenStreetMap contributors (ODbL), snapshot 2026-08-19T13:37:17Z; osm:node/5636348211"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -42.8124447,
+          -5.0854186
+        ]
+      },
+      "properties": {
+        "nome": "Clinica de Olhos Dra. Canrobert e Leite",
+        "tipo": "clinica",
+        "fonte": "OpenStreetMap contributors (ODbL), snapshot 2026-08-19T13:37:17Z; osm:node/6509703501"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -42.8111601,
+          -5.0862502
+        ]
+      },
+      "properties": {
+        "nome": "Clinica Médica",
+        "tipo": "clinica",
+        "fonte": "OpenStreetMap contributors (ODbL), snapshot 2026-08-19T13:37:17Z; osm:node/6516642561"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -42.8128823,
+          -5.0816331
+        ]
+      },
+      "properties": {
+        "nome": "Clinica de Reumatismo e Fisioterapia Dr. Olimar Amorim Leite",
+        "tipo": "clinica",
+        "fonte": "OpenStreetMap contributors (ODbL), snapshot 2026-08-19T13:37:17Z; osm:node/6524965732"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -42.8217917,
+          -5.0863334
+        ]
+      },
+      "properties": {
+        "nome": "Clinvita Clinica Medica Popular",
+        "tipo": "clinica",
+        "fonte": "OpenStreetMap contributors (ODbL), snapshot 2026-08-19T13:37:17Z; osm:node/6528317581"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -42.8085977,
+          -5.0948583
+        ]
+      },
+      "properties": {
+        "nome": "ANGIOFISIO",
+        "tipo": "clinica",
+        "fonte": "OpenStreetMap contributors (ODbL), snapshot 2026-08-19T13:37:17Z; osm:node/6537163507"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -42.808621,
+          -5.0947746
+        ]
+      },
+      "properties": {
+        "nome": "Clinica Saude Da Mulher Raimunda Batista",
+        "tipo": "clinica",
+        "fonte": "OpenStreetMap contributors (ODbL), snapshot 2026-08-19T13:37:17Z; osm:node/6537163508"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -42.8097722,
+          -5.0926302
+        ]
+      },
+      "properties": {
+        "nome": "Laser Vision Center",
+        "tipo": "clinica",
+        "fonte": "OpenStreetMap contributors (ODbL), snapshot 2026-08-19T13:37:17Z; osm:node/6537163510"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -42.8098749,
+          -5.0924441
+        ]
+      },
+      "properties": {
+        "nome": "Clinica Tarcio Rezende",
+        "tipo": "clinica",
+        "fonte": "OpenStreetMap contributors (ODbL), snapshot 2026-08-19T13:37:17Z; osm:node/6537163511"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -42.8115515,
+          -5.0888485
+        ]
+      },
+      "properties": {
+        "nome": "Clinica Dr. Valter Alencar",
+        "tipo": "clinica",
+        "fonte": "OpenStreetMap contributors (ODbL), snapshot 2026-08-19T13:37:17Z; osm:node/6537163513"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -42.8133687,
+          -5.0850341
+        ]
+      },
+      "properties": {
+        "nome": "Clinica Batista",
+        "tipo": "clinica",
+        "fonte": "OpenStreetMap contributors (ODbL), snapshot 2026-08-19T13:37:17Z; osm:node/6537163519"
+      }
+    }
+  ]
+}

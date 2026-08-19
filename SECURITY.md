@@ -23,11 +23,11 @@ Principais riscos: chave de importação exposta, GeoJSON abusivo, exaustão por
 
 - validação Pydantic e limites WGS84/quantidade;
 - consultas parametrizadas e índice espacial;
-- importação atômica com rollback;
+- importação idempotente por hash, lote versionado e rollback;
 - contêiner não-root, filesystem somente leitura e `no-new-privileges`;
-- CI com Ruff, mypy, testes contra PostGIS, build da imagem e Trivy para vulnerabilidades críticas conhecidas;
+- CI com Ruff, mypy, testes contra PostGIS, `pip-audit`, SBOM CycloneDX, build da imagem e Trivy para vulnerabilidades críticas conhecidas;
 - `.env.example` sem segredo operacional.
 
 ## Riscos aceitos no protótipo
 
-Não há OIDC, RBAC, rate limiting, WAF, criptografia de backup nem trilha de auditoria persistente. `/metrics` também deve ficar fora da internet pública em uma implantação real. Essas limitações impedem classificar o projeto como pronto para produção.
+Não há OIDC, RBAC, rate limiting, WAF, limite de corpo em bytes, criptografia de backup nem trilha de auditoria por ator. `/metrics` também deve ficar fora da internet pública em uma implantação real. Essas limitações impedem classificar o projeto como pronto para produção.

@@ -1,6 +1,7 @@
 from typing import Any
 
 from fastapi.testclient import TestClient
+from sqlalchemy.exc import IntegrityError
 
 from geo_intelligence_api.config import get_settings
 from geo_intelligence_api.database import get_db
@@ -21,6 +22,9 @@ class Result:
     def scalar_one(self) -> Any:
         return self._scalar
 
+    def first(self) -> Any | None:
+        return self._rows[0] if self._rows else None
+
 
 class FakeDB:
     def __init__(self, rows: list[Any] | None = None) -> None:
@@ -28,10 +32,21 @@ class FakeDB:
         self.committed = False
         self.rolled_back = False
         self.queries: list[str] = []
+        self.batches: dict[str, Any] = {}
 
-    def execute(self, statement: Any, *_args: Any, **_kwargs: Any) -> Result:
+    def execute(self, statement: Any, params: Any = None, **_kwargs: Any) -> Result:
         self.queries.append(str(statement))
+        if "dataset_batches" in str(statement) and params:
+            batch = self.batches.get(params.get("content_sha256", ""))
+            return Result([batch] if batch else [])
         return Result(self.rows)
+
+    def add(self, item: Any) -> None:
+        if item.__class__.__name__ == "DatasetBatch":
+            self.batches[item.content_sha256] = item
+
+    def flush(self) -> None:
+        pass
 
     def add_all(self, _items: list[Any]) -> None:
         pass
@@ -41,6 +56,11 @@ class FakeDB:
 
     def rollback(self) -> None:
         self.rolled_back = True
+
+
+class ConcurrentDB(FakeDB):
+    def flush(self) -> None:
+        raise IntegrityError("insert dataset_batches", {}, Exception("unique violation"))
 
 
 def test_live_e_headers() -> None:
@@ -179,6 +199,148 @@ def test_import_valido_e_atomico() -> None:
     assert response.status_code == 201
     assert response.json()["importados"] == 1
     assert db.committed
+
+
+def test_reimportacao_do_mesmo_dataset_e_idempotente() -> None:
+    db = FakeDB()
+    app.dependency_overrides[get_db] = lambda: db
+    payload = {
+        "type": "FeatureCollection",
+        "metadata": {
+            "source": "OpenStreetMap contributors",
+            "license": "ODbL 1.0",
+            "version": "2026-08-19T13:37:17Z",
+        },
+        "features": [
+            {
+                "type": "Feature",
+                "properties": {"nome": "Unidade", "tipo": "saude", "fonte": "OSM"},
+                "geometry": {"type": "Point", "coordinates": [-42.8, -5.1]},
+            }
+        ],
+    }
+    try:
+        first = TestClient(app).post(
+            "/api/v1/import/geojson",
+            headers={"X-API-Key": get_settings().api_key},
+            json=payload,
+        )
+        second = TestClient(app).post(
+            "/api/v1/import/geojson",
+            headers={"X-API-Key": get_settings().api_key},
+            json=payload,
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert first.status_code == 201
+    assert first.json()["status"] == "importado"
+    assert first.json()["importados"] == 1
+    assert second.status_code == 200
+    assert second.json()["status"] == "ja_importado"
+    assert second.json()["importados"] == 0
+    assert second.json()["duplicados"] == 1
+    assert first.json()["dataset_hash"] == second.json()["dataset_hash"]
+
+
+def test_importacao_concorrente_retorna_lote_existente() -> None:
+    db = ConcurrentDB()
+    app.dependency_overrides[get_db] = lambda: db
+    payload = {
+        "type": "FeatureCollection",
+        "metadata": {"source": "OSM", "version": "v1"},
+        "features": [
+            {
+                "type": "Feature",
+                "properties": {"nome": "Unidade", "tipo": "saude", "fonte": "OSM"},
+                "geometry": {"type": "Point", "coordinates": [-42.8, -5.1]},
+            }
+        ],
+    }
+    try:
+        response = TestClient(app).post(
+            "/api/v1/import/geojson",
+            headers={"X-API-Key": get_settings().api_key},
+            json=payload,
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "ja_importado"
+    assert db.rolled_back
+
+
+def test_lista_lotes_com_proveniencia() -> None:
+    db = FakeDB(
+        [
+            {
+                "id": "lote-1",
+                "content_sha256": "a" * 64,
+                "source": "OpenStreetMap contributors",
+                "source_version": "2026-08-19T13:37:17Z",
+                "license": "ODbL 1.0",
+                "feature_count": 20,
+                "imported_at": "2026-08-19T15:00:00Z",
+            }
+        ]
+    )
+    app.dependency_overrides[get_db] = lambda: db
+    try:
+        response = TestClient(app).get("/api/v1/datasets")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json()[0]["source"] == "OpenStreetMap contributors"
+    assert response.json()[0]["feature_count"] == 20
+    assert "content_sha256" in response.json()[0]
+
+
+def test_cobertura_por_territorio_retorna_poligono_e_equipamentos() -> None:
+    db = FakeDB(
+        [
+            {
+                "code": "2211001",
+                "name": "Teresina",
+                "source": "IBGE — API de Malhas Geográficas",
+                "source_url": "https://servicodados.ibge.gov.br/",
+                "license": "Dados públicos do IBGE; citar a fonte",
+                "acquired_at": "2026-08-19T16:38:33Z",
+                "quality": "mínima; demonstração",
+                "geometry": {"type": "MultiPolygon", "coordinates": []},
+                "features": [
+                    {
+                        "type": "Feature",
+                        "geometry": {"type": "Point", "coordinates": [-42.8, -5.09]},
+                        "properties": {"id": 1, "nome": "Hospital A", "tipo": "hospital"},
+                    }
+                ],
+            }
+        ]
+    )
+    app.dependency_overrides[get_db] = lambda: db
+    try:
+        response = TestClient(app).get("/api/v1/territories/2211001/coverage")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["territorio"]["codigo"] == "2211001"
+    assert body["territorio"]["fonte"].startswith("IBGE")
+    assert body["equipamentos"]["type"] == "FeatureCollection"
+    assert body["resumo"]["total"] == 1
+
+
+def test_cobertura_por_territorio_inexistente_retorna_404() -> None:
+    app.dependency_overrides[get_db] = lambda: FakeDB([])
+    try:
+        response = TestClient(app).get("/api/v1/territories/0000000/coverage")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 404
 
 
 def test_mapa_disponivel_e_consulta_cobertura() -> None:

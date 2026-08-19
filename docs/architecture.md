@@ -9,9 +9,11 @@ A aplicação demonstra uma API geoespacial B2B/B2G sem alegar operação instit
 ```mermaid
 flowchart LR
   OSM[Overpass / OSM] --> FETCH[Coleta reproduzível]
+  IBGE[API de Malhas / IBGE] --> TERR[Importação territorial]
   FETCH --> QUALITY[Relatório de qualidade]
-  QUALITY --> IMPORT[Importação autenticada]
+  QUALITY --> IMPORT[Importação autenticada e lote idempotente]
   IMPORT --> PG[(PostgreSQL + PostGIS)]
+  TERR --> PG
   CLIENT[Analista / sistema] --> API[FastAPI]
   MAP[Mapa Leaflet] --> API
   API --> PG
@@ -23,7 +25,7 @@ flowchart LR
 - `scripts/`: coleta, validação e seed fora do tráfego HTTP;
 - `src/geo_intelligence_api/api.py`: contratos e casos de uso HTTP;
 - `database.py` e `models.py`: persistência e tipos espaciais;
-- `migrations/`: extensão PostGIS, schema e índice GiST;
+- `migrations/`: extensão PostGIS, lotes, territórios e índices GiST;
 - `tests/`: contratos, falhas e integração PostGIS real na CI.
 
 ## Decisões
@@ -34,4 +36,4 @@ flowchart LR
 
 ## Limites deliberados
 
-Monólito modular, API key única e cobertura radial são escolhas de demonstração. O uso institucional exige identidade federada, autorização granular, catálogo/versionamento de datasets, revisão de qualidade e operação com SLOs.
+Monólito modular, API key única e cobertura radial são escolhas de demonstração. O catálogo atual registra lote, versão declarada, hash e proveniência, mas não substitui reconciliação por identificador externo nem uma plataforma de governança. O uso institucional exige identidade federada, autorização granular, revisão de qualidade e operação com SLOs.

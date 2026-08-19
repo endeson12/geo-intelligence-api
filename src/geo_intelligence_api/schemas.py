@@ -28,8 +28,20 @@ class GeoJSONFeature(BaseModel):
     geometry: PointGeometry
 
 
+class DatasetMetadata(BaseModel):
+    source: str = Field(default="não informada", max_length=200)
+    license: str | None = Field(default=None, max_length=100)
+    version: str | None = Field(default=None, max_length=100)
+    timestamp_osm_base: str | None = Field(default=None, max_length=100)
+
+    @property
+    def source_version(self) -> str | None:
+        return self.version or self.timestamp_osm_base
+
+
 class GeoJSONFeatureCollection(BaseModel):
     type: Literal["FeatureCollection"]
+    metadata: DatasetMetadata = Field(default_factory=DatasetMetadata)
     features: list[GeoJSONFeature] = Field(max_length=10_000)
 
 

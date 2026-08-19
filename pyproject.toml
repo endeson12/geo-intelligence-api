@@ -1,17 +1,33 @@
 [project]
 name = "geo-intelligence-api"
-version = "0.2.0"
+version = "0.3.0"
 description = "API geoespacial demonstrativa para decisões territoriais"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-  "fastapi>=0.116,<0.117", "uvicorn[standard]>=0.35,<1", "sqlalchemy>=2.0.40,<3",
-  "geoalchemy2>=0.18,<1", "psycopg[binary]>=3.2,<4", "alembic>=1.16,<2",
-  "pydantic-settings>=2.10,<3", "python-json-logger>=3.3,<4",
-  "prometheus-fastapi-instrumentator>=7.1,<8", "shapely>=2.1,<3"
+  "fastapi>=0.141.1,<0.142",
+  "uvicorn[standard]>=0.35,<1",
+  "sqlalchemy>=2.0.40,<3",
+  "geoalchemy2>=0.18,<1",
+  "psycopg[binary]>=3.2,<4",
+  "alembic>=1.16,<2",
+  "pydantic-settings>=2.10,<3",
+  "python-json-logger>=3.3,<4",
+  "prometheus-fastapi-instrumentator>=8.1,<9",
+  "shapely>=2.1,<3",
+  "starlette>=1.6,<2",
 ]
 [dependency-groups]
-dev = ["pytest>=8.4,<9", "pytest-cov>=6.2,<7", "httpx>=0.28,<1", "ruff>=0.12,<1", "mypy>=1.17,<2", "types-shapely>=2.0.0"]
+dev = [
+    "pytest>=9.1.1,<10",
+    "pytest-cov>=6.2,<7",
+    "httpx>=0.28,<1",
+    "ruff>=0.12,<1",
+    "mypy>=1.17,<2",
+    "types-shapely>=2.0.0",
+    "pip-audit>=2.9,<3",
+    "cyclonedx-bom>=5,<6",
+]
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

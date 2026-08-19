@@ -10,7 +10,7 @@ from sqlalchemy import delete
 from geo_intelligence_api.config import get_settings
 from geo_intelligence_api.database import SessionLocal
 from geo_intelligence_api.main import app
-from geo_intelligence_api.models import Facility
+from geo_intelligence_api.models import DatasetBatch, Facility
 
 pytestmark = pytest.mark.skipif(
     os.getenv("RUN_POSTGIS_INTEGRATION") != "1",
@@ -22,10 +22,12 @@ pytestmark = pytest.mark.skipif(
 def limpar_facilities() -> Iterator[None]:
     with SessionLocal() as db:
         db.execute(delete(Facility))
+        db.execute(delete(DatasetBatch))
         db.commit()
     yield
     with SessionLocal() as db:
         db.execute(delete(Facility))
+        db.execute(delete(DatasetBatch))
         db.commit()
 
 
@@ -90,4 +92,39 @@ def test_consultas_e_importacao_em_postgis_real() -> None:
         },
     )
     assert imported.status_code == 201
-    assert imported.json() == {"importados": 1}
+    assert imported.json()["status"] == "importado"
+    assert imported.json()["importados"] == 1
+    assert len(imported.json()["dataset_hash"]) == 64
+
+    repeated = client.post(
+        "/api/v1/import/geojson",
+        headers={"X-API-Key": os.environ["API_KEY"]},
+        json={
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "properties": {
+                        "nome": "Unidade C",
+                        "tipo": "assistencia",
+                        "fonte": "teste de integração",
+                    },
+                    "geometry": {"type": "Point", "coordinates": [-42.79, -5.08]},
+                }
+            ],
+        },
+    )
+    assert repeated.status_code == 200
+    assert repeated.json()["status"] == "ja_importado"
+    assert repeated.json()["importados"] == 0
+    assert repeated.json()["duplicados"] == 1
+
+    territory = client.get("/api/v1/territories/2211001/coverage")
+    assert territory.status_code == 200
+    body = territory.json()
+    assert body["territorio"]["fonte"].startswith("IBGE")
+    assert body["territorio"]["geometry"]["type"] == "MultiPolygon"
+    assert body["resumo"]["predicado"] == "ST_Covers"
+    names = {feature["properties"]["nome"] for feature in body["equipamentos"]["features"]}
+    assert "Unidade A" in names
+    assert "Unidade C" in names

@@ -12,6 +12,7 @@ WORKDIR /app
 COPY --from=builder --chown=app:app /app /app
 COPY --chown=app:app migrations migrations
 COPY --chown=app:app scripts scripts
+COPY --chown=app:app data data
 COPY --chown=app:app alembic.ini ./
 USER app
 EXPOSE 8000

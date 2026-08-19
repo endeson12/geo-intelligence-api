@@ -1,125 +1,152 @@
 # Geo Intelligence API
 
-API geoespacial de referência para equipes B2B/B2G explorarem acesso a equipamentos, proximidade e cobertura territorial com consultas auditáveis no PostGIS. O projeto é uma demonstração técnica: **não possui clientes nem métricas de produção**. O seed é sintético; uma amostra separada do OpenStreetMap demonstra ingestão com proveniência, sem ser apresentada como cadastro oficial.
+[![CI](https://github.com/endeson12/geo-intelligence-api/actions/workflows/ci.yml/badge.svg)](https://github.com/endeson12/geo-intelligence-api/actions/workflows/ci.yml)
+[![Pages demo](https://github.com/endeson12/geo-intelligence-api/actions/workflows/pages.yml/badge.svg)](https://endeson12.github.io/geo-intelligence-api/)
 
-## Problema
+API geoespacial demonstrativa para explorar proximidade, cobertura radial e presença de equipamentos em território oficial simplificado. Combina **FastAPI, PostgreSQL/PostGIS, GeoJSON, dados públicos com proveniência, Docker e CI**.
 
-Decisões sobre saúde, educação, assistência e segurança frequentemente dependem de perguntas espaciais — “o que existe nesta área?”, “qual instalação está mais perto?” e “quantas estão cobertas por este raio?”. Esta API oferece contratos GeoJSON simples sem esconder a semântica espacial executada pelo banco.
+> Este é um projeto-vitrine: **não possui clientes, SLA, operação institucional nem métricas de produção**. A demonstração web é estática; a API e o PostGIS são executados separadamente na CI pública.
 
-## Demonstração visual
+## Problema e decisão apoiada
 
-![Mapa interativo de cobertura territorial com 20 pontos da amostra OSM em Teresina](docs/map-demo.png)
+Perguntas como “qual instalação está mais perto?”, “o que existe neste raio?” e “quais equipamentos estão dentro deste território?” precisam de semântica espacial explícita e dados rastreáveis. O projeto oferece contratos GeoJSON e registra as funções PostGIS usadas em cada análise.
 
-A captura reproduz a interface local com a fotografia OpenStreetMap incluída no repositório. O mapa permite filtrar o tipo e clicar em qualquer ponto para consultar a cobertura por raio com `ST_DWithin`. **Não há deploy público permanente neste momento**; a execução reproduzível usa Docker Compose.
+## Experimente
 
-### Capacidades demonstradas
+- **Demonstração pública estática:** <https://endeson12.github.io/geo-intelligence-api/>
+- **Vídeo de 18 segundos:** [visão geral do projeto](docs/geo-intelligence-overview.mp4)
+- **Swagger local da API:** `http://localhost:8000/docs`
+- **Evidência de execução:** [GitHub Actions](https://github.com/endeson12/geo-intelligence-api/actions)
 
-- ingestão de GeoJSON com validação WGS84, autenticação e transação atômica;
-- consultas por `bbox`, proximidade e cobertura, retornadas como `FeatureCollection`;
-- índice GiST e funções espaciais executadas em PostGIS real na CI;
-- relatório versionado de qualidade e proveniência da amostra pública;
-- mapa web, logs JSON, request ID, métricas e health checks;
-- imagem não-root verificada com Trivy contra vulnerabilidades críticas conhecidas.
+![Mapa interativo de cobertura territorial com a amostra OSM em Teresina](docs/map-demo.png)
+
+A página pública usa a fotografia OSM versionada, o limite municipal simplificado do IBGE e cálculo Haversine no navegador. Ela permite avaliar a experiência sem fingir um backend hospedado. A implementação FastAPI/PostGIS equivalente é validada em PostgreSQL/PostGIS real na CI.
+
+## Capacidades demonstradas
+
+- importação GeoJSON autenticada, validada e transacional;
+- **lotes persistentes, hash SHA-256 e reimportação idempotente**;
+- catálogo de datasets e proveniência;
+- filtros por tipo e `bbox`, proximidade e cobertura radial;
+- consulta inclusiva de equipamentos dentro do território com `ST_Covers`;
+- limite oficial simplificado do município de Teresina obtido da API do IBGE;
+- amostra comunitária OSM com atribuição e relatório de qualidade;
+- GiST para geometria e índice funcional GiST compatível com `geom::geography`;
+- benchmark `EXPLAIN (ANALYZE, BUFFERS)` reproduzível e publicado como artefato da CI;
+- Ruff, mypy, pytest, PostGIS real, `pip-audit`, SBOM CycloneDX, build da imagem e Trivy;
+- mapa, logs JSON, request ID, Prometheus e health checks.
+
+## Dados e proveniência
+
+| Conjunto | Natureza | Uso | Limitação principal |
+|---|---|---|---|
+| `osm-teresina-health.geojson` | OpenStreetMap/ODbL | 20 equipamentos de saúde | amostra comunitária, não cadastro oficial |
+| `ibge-teresina-boundary.geojson` | API de Malhas do IBGE | limite municipal em consulta `ST_Covers` | malha simplificada, não cadastral |
+| `scripts/seed.py` | sintético | inicialização técnica | dados inventados, sem uso decisório |
+
+Consulte [fontes, coleta, atribuição e limitações](docs/data-sources.md). O relatório versionado observou **20/20 feições OSM válidas e 0 duplicidades exatas**; isso não comprova completude, atualidade ou acurácia posicional.
 
 ## Arquitetura
 
 ```mermaid
 flowchart LR
-  U[Analista / sistema] -->|HTTP + GeoJSON| API[FastAPI
-validação e observabilidade]
-  API -->|SQL parametrizado| PG[(PostgreSQL 16 + PostGIS)]
-  PG --> G[GiST / funções ST_*]
-  API --> M[Prometheus /metrics]
-  MAP[Leaflet /map] --> API
+  OSM[Overpass / OSM] --> Q[Validação e qualidade]
+  IBGE[API de Malhas / IBGE] --> T[Validação territorial]
+  Q --> API[FastAPI]
+  T --> PG[(PostgreSQL 16 + PostGIS)]
+  API --> PG
+  PG --> G[GiST / ST_DWithin / ST_Covers]
+  WEB[Leaflet: demo estática] -. amostra versionada .-> OSM
+  API --> OBS[Logs JSON / métricas]
 ```
 
-- FastAPI/Pydantic: contrato e validação WGS84.
-- SQLAlchemy 2/GeoAlchemy2: sessão transacional e tipo espacial.
-- PostGIS: `ST_DWithin`, `ST_DistanceSphere`, envelope e índice GiST.
-- Alembic: infraestrutura versionada, incluindo extensão PostGIS.
-
-Detalhes e decisões: [arquitetura](docs/architecture.md), [ADRs](docs/decisions/) e [runbook de operação](docs/operations.md).
+Detalhes: [arquitetura](docs/architecture.md), [ADRs](docs/decisions/) e [runbook](docs/operations.md).
 
 ## Quickstart
 
-Pré-requisitos: Docker com Compose. Copie `.env.example` para `.env` e troque senhas/chave.
+Pré-requisitos: Docker com Compose. Troque as credenciais da cópia local do ambiente.
 
 ```bash
 cp .env.example .env
 docker compose up --build -d
+docker compose exec api python scripts/import_territories.py data/ibge-teresina-boundary.geojson
 docker compose exec api python scripts/seed.py
 curl http://localhost:8000/health/ready
 ```
 
-Para importar a fotografia OpenStreetMap incluída, preservando a atribuição:
+Importar a fotografia OSM incluída:
 
 ```bash
 curl -fsS -X POST http://localhost:8000/api/v1/import/geojson \
   -H 'Content-Type: application/json' \
-  -H "X-API-Key: ${API_KEY}" \
+  -H 'X-API-Key: substitua-pela-chave-local' \
   --data-binary @data/osm-teresina-health.geojson
 ```
 
-Acesse Swagger em `http://localhost:8000/docs`, mapa em `/map` e métricas em `/metrics`.
-Para desenvolvimento local: `uv python install 3.12 && uv sync --all-groups`, configure PostgreSQL/PostGIS, rode `uv run alembic upgrade head` e `make test`.
+Acesse Swagger em `/docs`, mapa conectado à API em `/map` e métricas em `/metrics`.
 
 ## Endpoints
 
 | Método | Rota | Finalidade |
 |---|---|---|
-| GET | `/health/live` | Processo vivo |
-| GET | `/health/ready` | Banco alcançável |
+| GET | `/health/live` | processo vivo |
+| GET | `/health/ready` | banco alcançável |
 | GET | `/api/v1/facilities?tipo=&bbox=xmin,ymin,xmax,ymax` | FeatureCollection filtrada |
-| GET | `/api/v1/facilities/nearest?lat=&lon=&limit=&raio_m=` | Vizinhos por distância geodésica |
-| GET | `/api/v1/coverage?lat=&lon=&raio_m=&tipo=` | FeatureCollection e resumo dos pontos no raio |
-| POST | `/api/v1/import/geojson` | Importação atômica autenticada por `X-API-Key` |
+| GET | `/api/v1/facilities/nearest?lat=&lon=&limit=&raio_m=` | vizinhos por distância geodésica |
+| GET | `/api/v1/coverage?lat=&lon=&raio_m=&tipo=` | feições e resumo no raio |
+| GET | `/api/v1/territories/2211001/coverage?tipo=` | polígono, proveniência e equipamentos cobertos |
+| GET | `/api/v1/datasets` | lotes importados e metadados |
+| POST | `/api/v1/import/geojson` | importação idempotente por hash, protegida por API key |
 
-O import aceita apenas `FeatureCollection` de `Point`, coordenadas EPSG:4326 e propriedades `nome`, `tipo`, `fonte`. Limite: 10 mil feições por requisição.
-
-## Segurança, governança e LGPD
-
-- A chave de API é um controle demonstrativo; em produção use OIDC, rotação e cofre de segredos.
-- Importação é validada antes da gravação e consolidada em uma transação; falhas de banco causam rollback.
-- Request ID propagado, logs JSON, métricas Prometheus e headers defensivos ajudam auditoria.
-- A origem (`fonte`) acompanha cada registro. O seed é explicitamente sintético.
-- A amostra OSM registra licença, timestamp da base e identificador de cada elemento; consulte [fontes e qualidade dos dados](docs/data-sources.md).
-- O [relatório de qualidade versionado](docs/data-quality-report.json) registra 20 feições válidas e nenhuma duplicidade exata na fotografia incluída; isso não comprova completude ou acurácia posicional.
-- Minimize dados pessoais e coordenadas sensíveis; defina base legal, retenção, controle de acesso e avaliação de impacto conforme LGPD. Esta aplicação não deve armazenar dados pessoais sem governança adicional.
-- Tiles do mapa usam OpenStreetMap no navegador; avalie política de privacidade e provedor próprio antes de produção.
-
-Veja [SECURITY.md](SECURITY.md) para reporte responsável.
+O import aceita `FeatureCollection` de `Point` em EPSG:4326 e no máximo 10 mil feições. Uma repetição byte-semântica do mesmo payload retorna `200`, `status=ja_importado` e não duplica registros. Lotes semanticamente diferentes ainda exigem uma política de reconciliação por identificador externo antes de uso institucional.
 
 ## Evidências reproduzíveis
 
 ```bash
+uv sync --all-groups --frozen
 uv run ruff check .
 uv run ruff format --check .
 uv run mypy
 uv run pytest --cov=geo_intelligence_api
+uv run pip-audit
+uv run cyclonedx-py environment --output-reproducible --of JSON -o sbom.cdx.json
 uv run alembic upgrade head
-uv run python scripts/fetch_osm.py --output data/osm-teresina-health.geojson
+uv run python scripts/import_territories.py data/ibge-teresina-boundary.geojson
 uv run python scripts/data_quality.py data/osm-teresina-health.geojson
-docker compose config
+uv run python scripts/benchmark_postgis.py --output benchmark-postgis.json
 ```
 
-A CI executa qualidade, relatório dos dados, migração e testes em PostGIS real, build da imagem e Trivy. Resultados locais devem ser reportados pelo executor; este README não transforma uma execução pontual em métrica de produção.
+O benchmark usa 100 mil pontos sintéticos determinísticos em tabela temporária, executa a mesma consulta `ST_DWithin` antes e depois do índice funcional e registra plano, buffers, versões e tempos. É uma medição do ambiente efêmero da CI, **não uma promessa de desempenho de produção**.
 
-## Limitações
+## Segurança e governança
 
-- Paginação ainda limitada a 1.000 instalações na listagem.
-- API key única, sem RBAC/quotas; cache e rate limiting não implementados.
-- Cobertura radial é uma aproximação operacional, não isócrona viária.
-- Mapa depende de CDN/tiles externos; seed é fictício e a amostra OSM pode ser incompleta ou desatualizada.
-- Testes unitários usam sessão substituta; CI valida a migração contra PostGIS, mas uma suíte de integração espacial mais extensa é recomendada.
+- SQL parametrizado, rollback, validação WGS84 e limite lógico de feições;
+- API key é apenas controle demonstrativo; produção exigiria OIDC/RBAC e rotação;
+- imagem não-root, filesystem somente leitura e `no-new-privileges` no Compose;
+- `pip-audit`, SBOM CycloneDX e Trivy são evidências complementares, não garantia absoluta;
+- proveniência acompanha lotes, territórios e equipamentos;
+- dados pessoais e coordenadas sensíveis exigem base legal, minimização e avaliação LGPD.
+
+Veja [SECURITY.md](SECURITY.md).
+
+## Limitações honestas
+
+- não existe backend público permanente; o Pages é uma demonstração estática;
+- API key única, sem RBAC, quotas, WAF ou rate limiting;
+- limite de 10 mil feições é lógico, não limite de bytes no proxy;
+- cobertura radial não é isócrona viária;
+- OSM pode estar incompleto e o limite do IBGE é simplificado;
+- reimportação idêntica é idempotente, mas ainda não há upsert por identificador externo entre versões diferentes;
+- benchmark e CI não equivalem a carga contínua ou produção institucional.
 
 ## Roadmap
 
-1. Paginação cursor-based e filtros temporais.
-2. OIDC/RBAC, rate limiting e trilha de auditoria persistente.
-3. Isócronas de rede, importação assíncrona e catálogo de metadados.
-4. Testes de propriedade espacial, SLOs e dashboards versionados.
-5. OGC API Features e suporte a geometrias adicionais com políticas explícitas.
+1. upsert por identificador externo e política explícita de reconciliação entre versões;
+2. OIDC/RBAC, rate limiting e limite de corpo no proxy;
+3. setores/bairros com referência temporal e indicadores agregados;
+4. isócronas de rede, importação assíncrona e OGC API Features;
+5. SLOs somente após existir uma implantação real e observável.
 
 ## Licença
 
-MIT. Consulte [LICENSE](LICENSE). Contribuições seguem [CONTRIBUTING.md](CONTRIBUTING.md) e as versões estão em [CHANGELOG.md](CHANGELOG.md).
+Código sob MIT. Dados preservam suas próprias atribuições e condições, descritas em [fontes](docs/data-sources.md). Contribuições seguem [CONTRIBUTING.md](CONTRIBUTING.md); versões estão no [CHANGELOG](CHANGELOG.md).

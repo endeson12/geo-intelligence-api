@@ -18,6 +18,25 @@
 
 A amostra **não é um cadastro oficial**. Cobertura, atualização, nomes e classificação podem estar incompletos ou incorretos. O arquivo existe para demonstrar ingestão, proveniência e validação; uma decisão institucional deve usar uma fonte autorizada e critérios de qualidade acordados.
 
+### Limite municipal do IBGE
+
+`data/ibge-teresina-boundary.geojson` contém uma feição oficial simplificada do município de Teresina, código territorial `2211001`, obtida pela [API de Malhas Geográficas v3 do IBGE](https://servicodados.ibge.gov.br/api/docs/malhas?versao=3).
+
+- **Fonte:** IBGE — API de Malhas Geográficas;
+- **URL reproduzível:** registrada em `metadata.source_url`;
+- **Coleta:** `2026-08-19T16:38:33Z`;
+- **Qualidade solicitada:** `minima`;
+- **Uso no projeto:** persistência como `MultiPolygon` em EPSG:4326 e consulta inclusiva `ST_Covers`;
+- **Atribuição:** o nome da instituição e a URL oficial permanecem no arquivo e na resposta da API.
+
+A própria documentação do IBGE descreve essas malhas como **simplificadas**, voltadas a aplicações web. Como o parâmetro `periodo` foi omitido, a API informa que retorna a malha mais recente disponível no momento da coleta. O arquivo não representa bairros, setores censitários nem precisão cadastral e não deve ser usado como levantamento de limites.
+
+Importação reproduzível após as migrações:
+
+```bash
+uv run python scripts/import_territories.py data/ibge-teresina-boundary.geojson
+```
+
 ## Reproduzir a coleta
 
 ```bash

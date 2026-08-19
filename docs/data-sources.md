@@ -26,7 +26,7 @@ A amostra **não é um cadastro oficial**. Cobertura, atualização, nomes e cla
 - **URL reproduzível:** registrada em `metadata.source_url`;
 - **Coleta:** `2026-08-19T16:38:33Z`;
 - **Qualidade solicitada:** `minima`;
-- **Uso no projeto:** persistência como `MultiPolygon` em EPSG:4326 e consulta inclusiva `ST_Covers`;
+- **Uso no projeto:** metadado explícito `crs=EPSG:4326`, validação de topologia/faixas WGS84, persistência como `MultiPolygon` e consulta inclusiva `ST_Covers`;
 - **Atribuição:** o nome da instituição e a URL oficial permanecem no arquivo e na resposta da API.
 
 A própria documentação do IBGE descreve essas malhas como **simplificadas**, voltadas a aplicações web. Como o parâmetro `periodo` foi omitido, a API informa que retorna a malha mais recente disponível no momento da coleta. O arquivo não representa bairros, setores censitários nem precisão cadastral e não deve ser usado como levantamento de limites.

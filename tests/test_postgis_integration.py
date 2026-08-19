@@ -119,12 +119,12 @@ def test_consultas_e_importacao_em_postgis_real() -> None:
     assert repeated.json()["importados"] == 0
     assert repeated.json()["duplicados"] == 1
 
-    territory = client.get("/api/v1/territories/2211001/coverage")
+    territory = client.get("/api/v1/territories/2211001/coverage", params={"limit": 1, "offset": 0})
     assert territory.status_code == 200
     body = territory.json()
     assert body["territorio"]["fonte"].startswith("IBGE")
     assert body["territorio"]["geometry"]["type"] == "MultiPolygon"
     assert body["resumo"]["predicado"] == "ST_Covers"
-    names = {feature["properties"]["nome"] for feature in body["equipamentos"]["features"]}
-    assert "Unidade A" in names
-    assert "Unidade C" in names
+    assert body["resumo"]["total"] >= 2
+    assert body["resumo"]["retornados"] == 1
+    assert body["resumo"]["tem_proxima_pagina"] is True

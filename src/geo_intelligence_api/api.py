@@ -79,8 +79,10 @@ def nearest(
 ) -> dict[str, Any]:
     sql = text(
         """SELECT id, nome, tipo, fonte, ST_X(geom) AS lon, ST_Y(geom) AS lat,
-        ST_DistanceSphere(geom, ST_SetSRID(ST_MakePoint(:lon, :lat), 4326))
-            AS distancia_m
+        ST_Distance(
+            geom::geography,
+            ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography
+        ) AS distancia_m
         FROM facilities
         WHERE ST_DWithin(
             geom::geography,
@@ -152,32 +154,45 @@ def territory_coverage(
     code: str,
     db: DB,
     tipo: str | None = Query(None, max_length=80),
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0, le=100_000),
 ) -> dict[str, Any]:
     sql = text(
         """SELECT t.code, t.name, t.source, t.source_url, t.license,
         t.acquired_at, t.quality, ST_AsGeoJSON(t.geom)::json AS geometry,
+        (
+            SELECT count(*)
+            FROM facilities f
+            WHERE ST_Covers(t.geom, f.geom)
+              AND (CAST(:tipo AS varchar) IS NULL OR f.tipo = CAST(:tipo AS varchar))
+        ) AS total,
         COALESCE(
-            json_agg(
-                json_build_object(
+            (
+                SELECT json_agg(
+                    json_build_object(
                     'type', 'Feature',
                     'id', f.id,
                     'geometry', ST_AsGeoJSON(f.geom)::json,
                     'properties', json_build_object(
                         'id', f.id, 'nome', f.nome, 'tipo', f.tipo, 'fonte', f.fonte
                     )
-                ) ORDER BY f.id
-            ) FILTER (WHERE f.id IS NOT NULL),
+                    ) ORDER BY f.id
+                )
+                FROM (
+                    SELECT f.id, f.nome, f.tipo, f.fonte, f.geom
+                    FROM facilities f
+                    WHERE ST_Covers(t.geom, f.geom)
+                      AND (CAST(:tipo AS varchar) IS NULL OR f.tipo = CAST(:tipo AS varchar))
+                    ORDER BY f.id
+                    LIMIT :limite OFFSET :offset
+                ) f
+            ),
             '[]'::json
         ) AS features
         FROM territories t
-        LEFT JOIN facilities f
-          ON ST_Covers(t.geom, f.geom)
-         AND (CAST(:tipo AS varchar) IS NULL OR f.tipo = CAST(:tipo AS varchar))
-        WHERE t.code = :code
-        GROUP BY t.code, t.name, t.source, t.source_url, t.license,
-                 t.acquired_at, t.quality, t.geom"""
+        WHERE t.code = :code"""
     )
-    params: dict[str, Any] = {"code": code, "tipo": tipo}
+    params: dict[str, Any] = {"code": code, "tipo": tipo, "limite": limit, "offset": offset}
     row = db.execute(sql, params).mappings().first()
     if not row:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "território não encontrado")
@@ -189,6 +204,8 @@ def territory_coverage(
         geometry = json.loads(geometry)
     if isinstance(features, str):
         features = json.loads(features)
+    total = int(item["total"])
+    returned = len(features)
     return {
         "territorio": {
             "codigo": item["code"],
@@ -201,7 +218,15 @@ def territory_coverage(
             "geometry": geometry,
         },
         "equipamentos": {"type": "FeatureCollection", "features": features},
-        "resumo": {"total": len(features), "tipo": tipo, "predicado": "ST_Covers"},
+        "resumo": {
+            "total": total,
+            "retornados": returned,
+            "limite": limit,
+            "offset": offset,
+            "tem_proxima_pagina": offset + returned < total,
+            "tipo": tipo,
+            "predicado": "ST_Covers",
+        },
     }
 
 

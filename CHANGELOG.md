@@ -2,6 +2,22 @@
 
 Todas as mudanças relevantes deste projeto demonstrativo são registradas aqui.
 
+## [0.4.0] — 2026-08-19
+
+### Segurança e confiabilidade
+
+- atributos externos da demonstração são inseridos por DOM seguro, sem interpolação de HTML;
+- limites territoriais exigem CRS explícito, geometria válida, não vazia e coordenadas WGS84;
+- respostas territoriais possuem paginação e limite máximo de 500 equipamentos;
+- distância radial usa `geography` de forma consistente no filtro, ordenação e resposta;
+- índices espaciais são reconstruídos concorrentemente para evitar bloqueio prolongado de escritas;
+- CI executa upgrade, downgrade e novo upgrade em PostGIS real, preservando um registro legado.
+
+### Alterado
+
+- endpoint territorial agora informa total, retornados, limite, offset e próxima página;
+- documentação de segurança, fontes e operação atualizada com os controles verificáveis.
+
 ## [0.3.0] — 2026-08-19
 
 ### Adicionado

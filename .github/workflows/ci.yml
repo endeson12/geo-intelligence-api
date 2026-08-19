@@ -8,14 +8,15 @@ jobs:
     services:
       postgres:
         image: postgis/postgis:16-3.5
-        env: {POSTGRES_DB: geo, POSTGRES_USER: geo, POSTGRES_PASSWORD: geo}
+        env: {POSTGRES_DB: geo_migration_test, POSTGRES_USER: geo, POSTGRES_PASSWORD: geo}
         ports: ["5432:5432"]
         options: >-
-          --health-cmd "pg_isready -U geo -d geo" --health-interval 5s
+          --health-cmd "pg_isready -U geo -d geo_migration_test" --health-interval 5s
           --health-timeout 5s --health-retries 10
     env:
-      DATABASE_URL: postgresql+psycopg://geo:geo@localhost:5432/geo
+      DATABASE_URL: postgresql+psycopg://geo:geo@localhost:5432/geo_migration_test
       API_KEY: test-secret
+      MIGRATION_TEST_ALLOW_DESTRUCTIVE: "1"
       RUN_POSTGIS_INTEGRATION: "1"
     steps:
       - uses: actions/checkout@v7

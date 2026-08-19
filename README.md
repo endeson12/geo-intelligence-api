@@ -114,11 +114,13 @@ uv run mypy
 uv run pytest --cov=geo_intelligence_api
 uv run pip-audit
 uv run cyclonedx-py environment --output-reproducible --of JSON -o sbom.cdx.json
-uv run python scripts/verify_migrations.py
+uv run alembic upgrade head
 uv run python scripts/import_territories.py data/ibge-teresina-boundary.geojson
 uv run python scripts/data_quality.py data/osm-teresina-health.geojson
 uv run python scripts/benchmark_postgis.py --output benchmark-postgis.json
 ```
+
+> `scripts/verify_migrations.py` é destrutivo e reservado à CI: ele recria o schema para testar upgrade/downgrade. O script aborta sem `MIGRATION_TEST_ALLOW_DESTRUCTIVE=1` e sem um banco dedicado cujo nome termine em `_migration_test`.
 
 O benchmark reproduzível mais recente usou 100 mil pontos sintéticos e encontrou 565 registros no raio de 1 km. Nesta execução isolada da CI, a mediana caiu de **175,922 ms** (varredura sequencial) para **1,224 ms** com `Bitmap Index Scan (benchmark_geog_gist)`. O valor observado de 143,73× **não é promessa de produção**: depende do ambiente, da distribuição e do cache.
 

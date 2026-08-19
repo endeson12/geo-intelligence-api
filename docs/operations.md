@@ -47,4 +47,6 @@ docker compose exec -T db psql -U geo -d geo_restore -c 'SELECT count(*) FROM fa
 
 A CI executa `scripts/verify_migrations.py` em PostGIS real. O verificador cria a revisão `0001`, insere um registro legado, avança até `head`, recua para `0002` e avança novamente, confirmando preservação do registro, tabelas e índices.
 
+> **Atenção:** esse verificador apaga e recria o schema Alembic. Ele aborta por padrão e só executa quando `MIGRATION_TEST_ALLOW_DESTRUCTIVE=1` **e** o nome do banco termina em `_migration_test`. Nunca o aponte para desenvolvimento persistente, homologação ou produção.
+
 A revisão `0005` reconstrói os índices espaciais com `CREATE INDEX CONCURRENTLY`. Ela mantém o índice antigo disponível enquanto o substituto é construído e usa bloco Alembic em autocommit, evitando bloquear escritas durante a fase longa de construção. Ainda é necessário observar espaço em disco, duração e sessões concorrentes antes de aplicar em uma base grande.

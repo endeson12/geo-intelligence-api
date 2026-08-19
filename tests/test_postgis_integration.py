@@ -73,58 +73,84 @@ def test_consultas_e_importacao_em_postgis_real() -> None:
     assert coverage.json()["summary"]["total"] == 1
     assert coverage.json()["features"][0]["properties"]["nome"] == "Unidade A"
 
+    import_payload = {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "properties": {
+                    "nome": "Unidade C",
+                    "tipo": "assistencia",
+                    "fonte": "teste de integração",
+                },
+                "geometry": {"type": "Point", "coordinates": [-42.79, -5.08]},
+            },
+            {
+                "type": "Feature",
+                "properties": {
+                    "nome": "Unidade D",
+                    "tipo": "assistencia",
+                    "fonte": "teste de integração",
+                },
+                "geometry": {"type": "Point", "coordinates": [-42.78, -5.07]},
+            },
+        ],
+    }
     imported = client.post(
         "/api/v1/import/geojson",
         headers={"X-API-Key": os.environ["API_KEY"]},
-        json={
-            "type": "FeatureCollection",
-            "features": [
-                {
-                    "type": "Feature",
-                    "properties": {
-                        "nome": "Unidade C",
-                        "tipo": "assistencia",
-                        "fonte": "teste de integração",
-                    },
-                    "geometry": {"type": "Point", "coordinates": [-42.79, -5.08]},
-                }
-            ],
-        },
+        json=import_payload,
     )
     assert imported.status_code == 201
     assert imported.json()["status"] == "importado"
-    assert imported.json()["importados"] == 1
+    assert imported.json()["importados"] == 2
     assert len(imported.json()["dataset_hash"]) == 64
 
     repeated = client.post(
         "/api/v1/import/geojson",
         headers={"X-API-Key": os.environ["API_KEY"]},
-        json={
-            "type": "FeatureCollection",
-            "features": [
-                {
-                    "type": "Feature",
-                    "properties": {
-                        "nome": "Unidade C",
-                        "tipo": "assistencia",
-                        "fonte": "teste de integração",
-                    },
-                    "geometry": {"type": "Point", "coordinates": [-42.79, -5.08]},
-                }
-            ],
-        },
+        json=import_payload,
     )
     assert repeated.status_code == 200
     assert repeated.json()["status"] == "ja_importado"
     assert repeated.json()["importados"] == 0
-    assert repeated.json()["duplicados"] == 1
+    assert repeated.json()["duplicados"] == 2
 
-    territory = client.get("/api/v1/territories/2211001/coverage", params={"limit": 1, "offset": 0})
-    assert territory.status_code == 200
-    body = territory.json()
-    assert body["territorio"]["fonte"].startswith("IBGE")
-    assert body["territorio"]["geometry"]["type"] == "MultiPolygon"
-    assert body["resumo"]["predicado"] == "ST_Covers"
-    assert body["resumo"]["total"] >= 2
-    assert body["resumo"]["retornados"] == 1
-    assert body["resumo"]["tem_proxima_pagina"] is True
+    first_page = client.get(
+        "/api/v1/territories/2211001/coverage", params={"limit": 1, "offset": 0}
+    )
+    assert first_page.status_code == 200
+    first_body = first_page.json()
+    total = first_body["resumo"]["total"]
+    assert total >= 3
+    assert first_body["territorio"]["fonte"].startswith("IBGE")
+    assert first_body["territorio"]["geometry"]["type"] == "MultiPolygon"
+
+    paged_ids: list[int] = []
+    for offset in range(total):
+        page = client.get(
+            "/api/v1/territories/2211001/coverage",
+            params={"limit": 1, "offset": offset},
+        )
+        assert page.status_code == 200
+        body = page.json()
+        paged_ids.append(body["equipamentos"]["features"][0]["id"])
+        assert body["resumo"]["total"] == total
+        assert body["resumo"]["retornados"] == 1
+        assert body["resumo"]["tem_proxima_pagina"] is (offset + 1 < total)
+
+    assert paged_ids == sorted(paged_ids)
+    assert len(set(paged_ids)) == total
+
+    filtered_pages = [
+        client.get(
+            "/api/v1/territories/2211001/coverage",
+            params={"tipo": "assistencia", "limit": 1, "offset": offset},
+        ).json()
+        for offset in (0, 1)
+    ]
+    assert [page["resumo"]["total"] for page in filtered_pages] == [2, 2]
+    assert [page["resumo"]["tem_proxima_pagina"] for page in filtered_pages] == [True, False]
+    assert [
+        page["equipamentos"]["features"][0]["properties"]["nome"] for page in filtered_pages
+    ] == ["Unidade C", "Unidade D"]

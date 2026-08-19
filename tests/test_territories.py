@@ -5,6 +5,8 @@ import pytest
 
 from scripts.import_territories import parse_territory
 
+SOURCE = Path("data/ibge-teresina-boundary.geojson")
+
 
 def test_parse_limite_oficial_do_ibge() -> None:
     record = parse_territory(Path("data/ibge-teresina-boundary.geojson"))
@@ -63,5 +65,17 @@ def test_rejeita_limite_fora_da_faixa_wgs84(tmp_path: Path) -> None:
     file = tmp_path / "out-of-range.geojson"
     file.write_text(json.dumps(payload), encoding="utf-8")
 
-    with pytest.raises(ValueError, match="fora dos limites WGS84"):
+    with pytest.raises(ValueError, match="coordenadas fora dos limites WGS84"):
         parse_territory(file)
+
+
+def test_rejeita_limite_com_coordenadas_3d(tmp_path: Path) -> None:
+    payload = json.loads(SOURCE.read_text(encoding="utf-8"))
+    payload["features"][0]["geometry"]["coordinates"] = [
+        [[-43.0, -5.0, 100], [-42.0, -5.0, 100], [-42.0, -4.0, 100], [-43.0, -5.0, 100]]
+    ]
+    path = tmp_path / "three-dimensional.geojson"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="coordenadas devem ser bidimensionais"):
+        parse_territory(path)

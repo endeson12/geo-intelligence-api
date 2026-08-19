@@ -44,6 +44,8 @@ def parse_territory(path: Path) -> dict[str, Any]:
     if crs != "EPSG:4326":
         raise ValueError("CRS incompatível: esperado EPSG:4326")
     territorial_geometry = shape(geometry)
+    if territorial_geometry.has_z:
+        raise ValueError("coordenadas devem ser bidimensionais")
     if territorial_geometry.is_empty or not territorial_geometry.is_valid:
         reason = (
             "geometria vazia"

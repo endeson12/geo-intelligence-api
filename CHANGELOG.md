@@ -2,6 +2,14 @@
 
 Todas as mudanças relevantes deste projeto demonstrativo são registradas aqui.
 
+## [0.4.1] — 2026-08-19
+
+### Corrigido
+
+- o verificador destrutivo de migrações agora exige opt-in e banco dedicado `_migration_test`;
+- limites territoriais com coordenadas 3D são rejeitados antes do `INSERT` PostGIS;
+- a integração PostGIS percorre páginas sucessivas, valida ordenação, total, próxima página e filtro.
+
 ## [0.4.0] — 2026-08-19
 
 ### Segurança e confiabilidade

@@ -21,7 +21,7 @@ Principais riscos: chave de importação exposta, GeoJSON abusivo, exaustão por
 
 ## Controles verificáveis
 
-- validação Pydantic, CRS explícito, topologia, geometria vazia e limites WGS84/quantidade;
+- validação Pydantic, CRS explícito, coordenadas estritamente 2D, topologia, geometria vazia e limites WGS84/quantidade;
 - consultas parametrizadas e índice espacial;
 - resposta territorial paginada e limitada a 500 feições;
 - popups e opções da demo construídos com DOM seguro e `textContent`;

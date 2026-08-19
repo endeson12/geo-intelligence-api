@@ -90,7 +90,18 @@ def test_nearest_usa_operacoes_postgis() -> None:
 
 
 def test_coverage_retorna_contagem() -> None:
-    db = FakeDB()
+    db = FakeDB(
+        [
+            {
+                "id": 1,
+                "nome": "UBS Teste",
+                "tipo": "saude",
+                "fonte": "teste",
+                "lon": -42.8,
+                "lat": -5.1,
+            }
+        ]
+    )
     app.dependency_overrides[get_db] = lambda: db
     try:
         response = TestClient(app).get(
@@ -99,7 +110,9 @@ def test_coverage_retorna_contagem() -> None:
     finally:
         app.dependency_overrides.clear()
     assert response.status_code == 200
-    assert response.json()["total"] == 1
+    assert response.json()["type"] == "FeatureCollection"
+    assert response.json()["summary"]["total"] == 1
+    assert response.json()["features"][0]["properties"]["nome"] == "UBS Teste"
     assert "ST_DWithin" in db.queries[0]
 
 
@@ -168,7 +181,9 @@ def test_import_valido_e_atomico() -> None:
     assert db.committed
 
 
-def test_mapa_disponivel() -> None:
+def test_mapa_disponivel_e_consulta_cobertura() -> None:
     response = TestClient(app).get("/map")
     assert response.status_code == 200
     assert "leaflet" in response.text.lower()
+    assert "/api/v1/coverage" in response.text
+    assert "Não é cadastro oficial" in response.text

@@ -1,4 +1,4 @@
-.PHONY: install lint format type test migrate seed run up down
+.PHONY: install lint format type test data-quality check migrate seed run up down
 install:
 	uv sync --all-groups
 lint:
@@ -11,6 +11,9 @@ type:
 	uv run mypy
 test:
 	uv run pytest --cov=geo_intelligence_api --cov-report=term-missing
+data-quality:
+	uv run python scripts/data_quality.py data/osm-teresina-health.geojson
+check: lint type data-quality test
 migrate:
 	uv run alembic upgrade head
 seed:

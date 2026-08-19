@@ -1,0 +1,26 @@
+{
+  "status": "aprovado",
+  "feature_count": 20,
+  "valid_feature_count": 20,
+  "duplicate_count": 0,
+  "type_counts": {
+    "clinica": 16,
+    "consultorio": 2,
+    "hospital": 2
+  },
+  "bbox": [
+    -42.8217917,
+    -5.1316575,
+    -42.7854768,
+    -5.0816331
+  ],
+  "source_metadata": {
+    "source": "OpenStreetMap contributors",
+    "license": "ODbL 1.0",
+    "generated_from": "Overpass API",
+    "timestamp_osm_base": "2026-08-19T13:37:17Z",
+    "warning": "Amostra comunitária; não é cadastro oficial nem garantia de completude."
+  },
+  "errors": [],
+  "warnings": []
+}

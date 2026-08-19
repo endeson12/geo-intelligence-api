@@ -26,6 +26,16 @@ uv run python scripts/fetch_osm.py
 
 A Overpass API é um serviço comunitário e pode aplicar limites. Evite execuções frequentes, identifique o cliente e preserve a atribuição.
 
+## Relatório reproduzível de qualidade
+
+O pipeline local verifica estrutura da `FeatureCollection`, geometrias `Point`, faixa WGS84, campos obrigatórios, duplicidades exatas e atribuição da fonte:
+
+```bash
+uv run python scripts/data_quality.py data/osm-teresina-health.geojson
+```
+
+O resultado versionado está em [`data-quality-report.json`](data-quality-report.json). Na fotografia incluída, 20 de 20 feições passaram pelas regras automatizadas e nenhuma duplicidade exata foi encontrada. Isso **não comprova completude, atualidade nem acurácia posicional**; essas dimensões exigem comparação com fonte autorizada e revisão de domínio.
+
 ## Checklist antes de uso institucional
 
 1. Definir responsável, finalidade, fonte autorizada e base legal.

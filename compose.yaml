@@ -12,6 +12,8 @@ services:
       retries: 10
     volumes: ["postgres_data:/var/lib/postgresql/data"]
     ports: ["5432:5432"]
+    mem_limit: 512m
+    cpus: 1.0
   api:
     build: .
     environment:
@@ -21,8 +23,16 @@ services:
       db: {condition: service_healthy}
     command: ["sh", "-c", "alembic upgrade head && uvicorn geo_intelligence_api.main:app --host 0.0.0.0 --port 8000"]
     ports: ["8000:8000"]
+    init: true
     read_only: true
     tmpfs: ["/tmp"]
     security_opt: ["no-new-privileges:true"]
+    mem_limit: 384m
+    cpus: 1.0
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/live', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
 volumes:
   postgres_data:

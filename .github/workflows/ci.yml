@@ -16,8 +16,8 @@ jobs:
       API_KEY: test-secret
       RUN_POSTGIS_INTEGRATION: "1"
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
         with: {python-version: "3.12", enable-cache: true}
       - run: uv sync --all-groups --frozen
       - run: uv run ruff check . && uv run ruff format --check .

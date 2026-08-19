@@ -116,7 +116,12 @@ uv run python scripts/data_quality.py data/osm-teresina-health.geojson
 uv run python scripts/benchmark_postgis.py --output benchmark-postgis.json
 ```
 
-O benchmark usa 100 mil pontos sintéticos determinísticos em tabela temporária, executa a mesma consulta `ST_DWithin` antes e depois do índice funcional e registra plano, buffers, versões e tempos. É uma medição do ambiente efêmero da CI, **não uma promessa de desempenho de produção**.
+O benchmark reproduzível mais recente usou 100 mil pontos sintéticos e encontrou 565 registros no raio de 1 km. Nesta execução isolada da CI, a mediana caiu de **175,922 ms** (varredura sequencial) para **1,224 ms** com `Bitmap Index Scan (benchmark_geog_gist)`. O valor observado de 143,73× **não é promessa de produção**: depende do ambiente, da distribuição e do cache.
+
+- [relatório JSON versionado](docs/benchmark-postgis.json)
+- [execução pública da CI](https://github.com/endeson12/geo-intelligence-api/actions/runs/32280005169)
+- plano com e sem índice, versões e três amostras por cenário;
+- consulta com correspondências reais no dataset sintético, evitando medir apenas resultado vazio.
 
 ## Segurança e governança
 

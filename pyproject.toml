@@ -1,6 +1,6 @@
 [project]
 name = "geo-intelligence-api"
-version = "0.1.0"
+version = "0.1.1"
 description = "API geoespacial demonstrativa para decisões territoriais"
 readme = "README.md"
 requires-python = ">=3.12"

@@ -26,7 +26,7 @@ jobs:
         run: uv run pip-audit
       - name: Gerar SBOM CycloneDX
         run: uv run cyclonedx-py environment --output-reproducible --of JSON -o sbom.cdx.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: sbom-cyclonedx
           path: sbom.cdx.json
@@ -38,7 +38,7 @@ jobs:
         run: uv run python scripts/import_territories.py data/ibge-teresina-boundary.geojson
       - name: Benchmark GiST reproduzível
         run: uv run python scripts/benchmark_postgis.py --output benchmark-postgis.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: benchmark-postgis
           path: benchmark-postgis.json

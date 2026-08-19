@@ -18,6 +18,7 @@ def test_demo_publica_declara_escopo_e_usa_amostra_versionada() -> None:
 def test_workflow_publica_apenas_o_diretorio_da_demo() -> None:
     workflow = Path(".github/workflows/pages.yml").read_text(encoding="utf-8")
 
-    assert "actions/upload-pages-artifact@v4" in workflow
-    assert "actions/deploy-pages@v4" in workflow
+    assert "actions/configure-pages@v6" in workflow
+    assert "actions/upload-pages-artifact@v5" in workflow
+    assert "actions/deploy-pages@v5" in workflow
     assert "path: web-demo" in workflow

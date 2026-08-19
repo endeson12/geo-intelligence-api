@@ -1,6 +1,7 @@
 from typing import Any
 
 from fastapi.testclient import TestClient
+from sqlalchemy.exc import IntegrityError
 
 from geo_intelligence_api.config import get_settings
 from geo_intelligence_api.database import get_db
@@ -55,6 +56,11 @@ class FakeDB:
 
     def rollback(self) -> None:
         self.rolled_back = True
+
+
+class ConcurrentDB(FakeDB):
+    def flush(self) -> None:
+        raise IntegrityError("insert dataset_batches", {}, Exception("unique violation"))
 
 
 def test_live_e_headers() -> None:
@@ -235,6 +241,34 @@ def test_reimportacao_do_mesmo_dataset_e_idempotente() -> None:
     assert second.json()["importados"] == 0
     assert second.json()["duplicados"] == 1
     assert first.json()["dataset_hash"] == second.json()["dataset_hash"]
+
+
+def test_importacao_concorrente_retorna_lote_existente() -> None:
+    db = ConcurrentDB()
+    app.dependency_overrides[get_db] = lambda: db
+    payload = {
+        "type": "FeatureCollection",
+        "metadata": {"source": "OSM", "version": "v1"},
+        "features": [
+            {
+                "type": "Feature",
+                "properties": {"nome": "Unidade", "tipo": "saude", "fonte": "OSM"},
+                "geometry": {"type": "Point", "coordinates": [-42.8, -5.1]},
+            }
+        ],
+    }
+    try:
+        response = TestClient(app).post(
+            "/api/v1/import/geojson",
+            headers={"X-API-Key": get_settings().api_key},
+            json=payload,
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "ja_importado"
+    assert db.rolled_back
 
 
 def test_lista_lotes_com_proveniencia() -> None:

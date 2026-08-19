@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response, 
 from geoalchemy2.shape import from_shape
 from shapely.geometry import Point
 from sqlalchemy import text
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from .config import Settings, get_settings
@@ -270,6 +270,36 @@ def import_geojson(
         db.flush()
         db.add_all(items)
         db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        concurrent = (
+            db.execute(
+                text(
+                    "SELECT id, feature_count FROM dataset_batches "
+                    "WHERE content_sha256 = :content_sha256"
+                ),
+                {"content_sha256": content_sha256},
+            )
+            .mappings()
+            .first()
+        )
+        if not concurrent:
+            raise HTTPException(500, "importação revertida") from exc
+        response.status_code = status.HTTP_200_OK
+        concurrent_id = concurrent["id"] if isinstance(concurrent, dict) else concurrent.id
+        concurrent_count = (
+            concurrent["feature_count"]
+            if isinstance(concurrent, dict)
+            else concurrent.feature_count
+        )
+        return {
+            "status": "ja_importado",
+            "lote_id": concurrent_id,
+            "dataset_hash": content_sha256,
+            "importados": 0,
+            "rejeitados": 0,
+            "duplicados": concurrent_count,
+        }
     except SQLAlchemyError as exc:
         db.rollback()
         raise HTTPException(500, "importação revertida") from exc

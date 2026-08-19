@@ -12,14 +12,14 @@ from typing import Any
 
 import psycopg
 
-QUERY = """EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)
-SELECT COUNT(*)
+COUNT_QUERY = """SELECT COUNT(*)
 FROM benchmark_facilities
 WHERE ST_DWithin(
     geom::geography,
     ST_SetSRID(ST_MakePoint(-42.80, -5.09), 4326)::geography,
     1000
 )"""
+QUERY = "EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) " + COUNT_QUERY
 
 
 def normalize_database_url(database_url: str) -> str:
@@ -70,7 +70,7 @@ def run_benchmark(database_url: str, dataset_size: int) -> dict[str, Any]:
                     ST_SetSRID(
                         ST_MakePoint(
                             -42.95 + MOD(id, 1000) * 0.0003,
-                            -5.24 + (id / 1000) * 0.0003
+                            -5.165 + (id / 1000) * 0.0015
                         ),
                         4326
                     )::geometry(Point, 4326) AS geom
@@ -91,6 +91,8 @@ def run_benchmark(database_url: str, dataset_size: int) -> dict[str, Any]:
         with connection.cursor() as cursor:
             cursor.execute("SELECT version(), PostGIS_Full_Version()")
             postgres_version, postgis_version = cursor.fetchone()
+            cursor.execute(COUNT_QUERY)
+            matched_rows = int(cursor.fetchone()[0])
 
     before_ms = float(before["execution_ms_median"])
     after_ms = float(after["execution_ms_median"])
@@ -98,6 +100,7 @@ def run_benchmark(database_url: str, dataset_size: int) -> dict[str, Any]:
         "scope": "benchmark sintético local/CI; não representa carga de produção",
         "dataset": {
             "rows": dataset_size,
+            "matched_rows": matched_rows,
             "geometry": "Point EPSG:4326 gerado deterministicamente",
         },
         "query": "ST_DWithin sobre geom::geography, raio de 1000 m",

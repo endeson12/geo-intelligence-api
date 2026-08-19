@@ -172,7 +172,7 @@ def territory_coverage(
         FROM territories t
         LEFT JOIN facilities f
           ON ST_Covers(t.geom, f.geom)
-         AND (:tipo IS NULL OR f.tipo = :tipo)
+         AND (CAST(:tipo AS varchar) IS NULL OR f.tipo = CAST(:tipo AS varchar))
         WHERE t.code = :code
         GROUP BY t.code, t.name, t.source, t.source_url, t.license,
                  t.acquired_at, t.quality, t.geom"""

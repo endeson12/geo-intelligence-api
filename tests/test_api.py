@@ -2,6 +2,7 @@ from typing import Any
 
 from fastapi.testclient import TestClient
 
+from geo_intelligence_api.config import get_settings
 from geo_intelligence_api.database import get_db
 from geo_intelligence_api.main import app
 
@@ -156,7 +157,9 @@ def test_import_valido_e_atomico() -> None:
     }
     try:
         response = TestClient(app).post(
-            "/api/v1/import/geojson", headers={"X-API-Key": "change-me"}, json=payload
+            "/api/v1/import/geojson",
+            headers={"X-API-Key": get_settings().api_key},
+            json=payload,
         )
     finally:
         app.dependency_overrides.clear()

@@ -27,11 +27,13 @@ A página pública usa a fotografia OSM versionada, o limite municipal simplific
 - importação GeoJSON autenticada, validada e transacional;
 - **lotes persistentes, hash SHA-256 e reimportação idempotente**;
 - catálogo de datasets e proveniência;
-- filtros por tipo e `bbox`, proximidade e cobertura radial;
-- consulta inclusiva de equipamentos dentro do território com `ST_Covers`;
+- filtros por tipo e `bbox`, proximidade e cobertura radial com uma única métrica geodésica;
+- consulta paginada de equipamentos dentro do território com `ST_Covers`;
 - limite oficial simplificado do município de Teresina obtido da API do IBGE;
 - amostra comunitária OSM com atribuição e relatório de qualidade;
-- GiST para geometria e índice funcional GiST compatível com `geom::geography`;
+- GiST para geometria e índice funcional GiST compatível com `geom::geography`, reconstruídos concorrentemente em atualização;
+- validação territorial de CRS, topologia, geometria vazia e faixas WGS84;
+- renderização segura da demo sem interpolar atributos externos como HTML;
 - benchmark `EXPLAIN (ANALYZE, BUFFERS)` reproduzível e publicado como artefato da CI;
 - Ruff, mypy, pytest, PostGIS real, `pip-audit`, SBOM CycloneDX, build da imagem e Trivy;
 - mapa, logs JSON, request ID, Prometheus e health checks.
@@ -94,11 +96,13 @@ Acesse Swagger em `/docs`, mapa conectado à API em `/map` e métricas em `/metr
 | GET | `/api/v1/facilities?tipo=&bbox=xmin,ymin,xmax,ymax` | FeatureCollection filtrada |
 | GET | `/api/v1/facilities/nearest?lat=&lon=&limit=&raio_m=` | vizinhos por distância geodésica |
 | GET | `/api/v1/coverage?lat=&lon=&raio_m=&tipo=` | feições e resumo no raio |
-| GET | `/api/v1/territories/2211001/coverage?tipo=` | polígono, proveniência e equipamentos cobertos |
+| GET | `/api/v1/territories/2211001/coverage?tipo=&limit=&offset=` | polígono, proveniência e equipamentos paginados |
 | GET | `/api/v1/datasets` | lotes importados e metadados |
 | POST | `/api/v1/import/geojson` | importação idempotente por hash, protegida por API key |
 
 O import aceita `FeatureCollection` de `Point` em EPSG:4326 e no máximo 10 mil feições. Uma repetição byte-semântica do mesmo payload retorna `200`, `status=ja_importado` e não duplica registros. Lotes semanticamente diferentes ainda exigem uma política de reconciliação por identificador externo antes de uso institucional.
+
+A consulta territorial aceita `limit` entre 1 e 500 e `offset` entre 0 e 100.000. O resumo separa `total`, `retornados` e `tem_proxima_pagina`, evitando materializar um território inteiro em uma única resposta.
 
 ## Evidências reproduzíveis
 
@@ -110,7 +114,7 @@ uv run mypy
 uv run pytest --cov=geo_intelligence_api
 uv run pip-audit
 uv run cyclonedx-py environment --output-reproducible --of JSON -o sbom.cdx.json
-uv run alembic upgrade head
+uv run python scripts/verify_migrations.py
 uv run python scripts/import_territories.py data/ibge-teresina-boundary.geojson
 uv run python scripts/data_quality.py data/osm-teresina-health.geojson
 uv run python scripts/benchmark_postgis.py --output benchmark-postgis.json
@@ -125,7 +129,10 @@ O benchmark reproduzível mais recente usou 100 mil pontos sintéticos e encontr
 
 ## Segurança e governança
 
-- SQL parametrizado, rollback, validação WGS84 e limite lógico de feições;
+- SQL parametrizado, rollback, validação WGS84/topológica e limite lógico de feições;
+- paginação territorial com limite máximo de 500 equipamentos por resposta;
+- atributos OSM inseridos na demo como texto, sem `innerHTML` ou interpolação de HTML;
+- ciclo Alembic real na CI (`0001 → head → 0002 → head`) preservando dados legados;
 - API key é apenas controle demonstrativo; produção exigiria OIDC/RBAC e rotação;
 - imagem não-root, filesystem somente leitura e `no-new-privileges` no Compose;
 - `pip-audit`, SBOM CycloneDX e Trivy são evidências complementares, não garantia absoluta;

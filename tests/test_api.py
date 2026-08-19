@@ -106,7 +106,9 @@ def test_nearest_usa_operacoes_postgis() -> None:
         app.dependency_overrides.clear()
     assert response.status_code == 200
     assert "ST_DWithin" in db.queries[0]
-    assert "ST_DistanceSphere" in db.queries[0]
+    assert "ST_Distance(" in db.queries[0]
+    assert "ST_DistanceSphere" not in db.queries[0]
+    assert "geom::geography" in db.queries[0]
 
 
 def test_coverage_retorna_contagem() -> None:
@@ -309,6 +311,7 @@ def test_cobertura_por_territorio_retorna_poligono_e_equipamentos() -> None:
                 "acquired_at": "2026-08-19T16:38:33Z",
                 "quality": "mínima; demonstração",
                 "geometry": {"type": "MultiPolygon", "coordinates": []},
+                "total": 1,
                 "features": [
                     {
                         "type": "Feature",
@@ -321,7 +324,9 @@ def test_cobertura_por_territorio_retorna_poligono_e_equipamentos() -> None:
     )
     app.dependency_overrides[get_db] = lambda: db
     try:
-        response = TestClient(app).get("/api/v1/territories/2211001/coverage")
+        response = TestClient(app).get(
+            "/api/v1/territories/2211001/coverage", params={"limit": 25, "offset": 0}
+        )
     finally:
         app.dependency_overrides.clear()
 
@@ -331,6 +336,11 @@ def test_cobertura_por_territorio_retorna_poligono_e_equipamentos() -> None:
     assert body["territorio"]["fonte"].startswith("IBGE")
     assert body["equipamentos"]["type"] == "FeatureCollection"
     assert body["resumo"]["total"] == 1
+    assert body["resumo"]["retornados"] == 1
+    assert body["resumo"]["limite"] == 25
+    assert body["resumo"]["offset"] == 0
+    assert body["resumo"]["tem_proxima_pagina"] is False
+    assert "LIMIT :limite OFFSET :offset" in db.queries[0]
 
 
 def test_cobertura_por_territorio_inexistente_retorna_404() -> None:

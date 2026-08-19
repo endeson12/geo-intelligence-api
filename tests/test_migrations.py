@@ -22,3 +22,25 @@ def test_migracao_cria_territorios_com_indice_espacial() -> None:
     assert "territories" in migration
     assert "MULTIPOLYGON" in migration
     assert "ix_territories_geom_gist" in migration
+
+
+def test_ci_executa_ciclo_real_de_migracao_com_dados_legados() -> None:
+    workflow = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
+    verifier = Path("scripts/verify_migrations.py").read_text(encoding="utf-8")
+
+    assert "scripts/verify_migrations.py" in workflow
+    assert 'command.upgrade(config, "0001")' in verifier
+    assert 'command.downgrade(config, "0002")' in verifier
+    assert "legacy-preserved" in verifier
+    assert "ix_facilities_geog_gist" in verifier
+    assert "ix_territories_geom_gist" in verifier
+
+
+def test_migracao_reconstroi_indices_sem_bloquear_escritas() -> None:
+    migration = Path("migrations/versions/0005_concurrent_indexes.py").read_text(encoding="utf-8")
+
+    assert "autocommit_block" in migration
+    assert "CREATE INDEX CONCURRENTLY" in migration
+    assert "DROP INDEX CONCURRENTLY" in migration
+    assert "ix_facilities_geog_gist" in migration
+    assert "ix_territories_geom_gist" in migration

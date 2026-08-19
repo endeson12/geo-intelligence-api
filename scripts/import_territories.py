@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 from pathlib import Path
 from typing import Any
 
+from shapely.geometry import shape
+from shapely.validation import explain_validity
 from sqlalchemy import text
 
 from geo_intelligence_api.database import SessionLocal
@@ -19,6 +22,7 @@ REQUIRED_METADATA = {
     "license",
     "acquired_at",
     "quality",
+    "crs",
 }
 
 
@@ -36,6 +40,22 @@ def parse_territory(path: Path) -> dict[str, Any]:
     geometry = payload["features"][0].get("geometry", {})
     if geometry.get("type") not in {"Polygon", "MultiPolygon"}:
         raise ValueError("o limite deve ser Polygon ou MultiPolygon")
+    crs = str(metadata["crs"]).upper()
+    if crs != "EPSG:4326":
+        raise ValueError("CRS incompatível: esperado EPSG:4326")
+    territorial_geometry = shape(geometry)
+    if territorial_geometry.is_empty or not territorial_geometry.is_valid:
+        reason = (
+            "geometria vazia"
+            if territorial_geometry.is_empty
+            else explain_validity(territorial_geometry)
+        )
+        raise ValueError(f"geometria territorial inválida: {reason}")
+    min_lon, min_lat, max_lon, max_lat = territorial_geometry.bounds
+    if not all(math.isfinite(value) for value in territorial_geometry.bounds) or not (
+        -180 <= min_lon <= max_lon <= 180 and -90 <= min_lat <= max_lat <= 90
+    ):
+        raise ValueError("coordenadas fora dos limites WGS84")
     return {
         "code": str(metadata["territorial_code"]),
         "name": str(metadata["name"]),
@@ -44,6 +64,7 @@ def parse_territory(path: Path) -> dict[str, Any]:
         "license": str(metadata["license"]),
         "acquired_at": str(metadata["acquired_at"]),
         "quality": str(metadata["quality"]),
+        "crs": crs,
         "geometry": geometry,
     }
 

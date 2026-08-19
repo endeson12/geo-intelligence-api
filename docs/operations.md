@@ -42,3 +42,9 @@ docker compose exec -T db psql -U geo -d geo_restore -c 'SELECT count(*) FROM fa
 - aplicação: volte para uma tag aprovada e reconstrua a imagem;
 - schema: prefira migração corretiva; `alembic downgrade` exige avaliação de perda de dados;
 - dataset: mantenha lote/versionamento antes de substituir dados institucionais.
+
+## Migrações e índices espaciais
+
+A CI executa `scripts/verify_migrations.py` em PostGIS real. O verificador cria a revisão `0001`, insere um registro legado, avança até `head`, recua para `0002` e avança novamente, confirmando preservação do registro, tabelas e índices.
+
+A revisão `0005` reconstrói os índices espaciais com `CREATE INDEX CONCURRENTLY`. Ela mantém o índice antigo disponível enquanto o substituto é construído e usa bloco Alembic em autocommit, evitando bloquear escritas durante a fase longa de construção. Ainda é necessário observar espaço em disco, duração e sessões concorrentes antes de aplicar em uma base grande.

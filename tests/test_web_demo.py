@@ -15,6 +15,15 @@ def test_demo_publica_declara_escopo_e_usa_amostra_versionada() -> None:
     assert ".map-wrap{min-width:0;min-height:0" in html
 
 
+def test_demo_nao_interpola_dados_externos_como_html() -> None:
+    html = Path("web-demo/index.html").read_text(encoding="utf-8")
+
+    assert "insertAdjacentHTML" not in html
+    assert "bindPopup(`<strong>${" not in html
+    assert "document.createElement('option')" in html
+    assert "document.createTextNode" in html
+
+
 def test_workflow_publica_apenas_o_diretorio_da_demo() -> None:
     workflow = Path(".github/workflows/pages.yml").read_text(encoding="utf-8")
 

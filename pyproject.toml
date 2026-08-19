@@ -1,0 +1,34 @@
+[project]
+name = "geo-intelligence-api"
+version = "0.1.0"
+description = "API geoespacial demonstrativa para decisões territoriais"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.116,<0.117", "uvicorn[standard]>=0.35,<1", "sqlalchemy>=2.0.40,<3",
+  "geoalchemy2>=0.18,<1", "psycopg[binary]>=3.2,<4", "alembic>=1.16,<2",
+  "pydantic-settings>=2.10,<3", "python-json-logger>=3.3,<4",
+  "prometheus-fastapi-instrumentator>=7.1,<8", "shapely>=2.1,<3"
+]
+[dependency-groups]
+dev = ["pytest>=8.4,<9", "pytest-cov>=6.2,<7", "httpx>=0.28,<1", "ruff>=0.12,<1", "mypy>=1.17,<2", "types-shapely>=2.0.0"]
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+[tool.hatch.build.targets.wheel]
+packages = ["src/geo_intelligence_api"]
+[tool.pytest.ini_options]
+pythonpath = ["src", "."]
+testpaths = ["tests"]
+addopts = "-q --disable-warnings"
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "N", "S"]
+ignore = ["S101", "B008"]
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+packages = ["geo_intelligence_api"]

@@ -1,0 +1,28 @@
+services:
+  db:
+    image: postgis/postgis:16-3.5
+    environment:
+      POSTGRES_DB: geo
+      POSTGRES_USER: geo
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-geo}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U geo -d geo"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes: ["postgres_data:/var/lib/postgresql/data"]
+    ports: ["5432:5432"]
+  api:
+    build: .
+    environment:
+      DATABASE_URL: postgresql+psycopg://geo:${POSTGRES_PASSWORD:-geo}@db:5432/geo
+      API_KEY: ${API_KEY:-change-me}
+    depends_on:
+      db: {condition: service_healthy}
+    command: ["sh", "-c", "alembic upgrade head && uvicorn geo_intelligence_api.main:app --host 0.0.0.0 --port 8000"]
+    ports: ["8000:8000"]
+    read_only: true
+    tmpfs: ["/tmp"]
+    security_opt: ["no-new-privileges:true"]
+volumes:
+  postgres_data:

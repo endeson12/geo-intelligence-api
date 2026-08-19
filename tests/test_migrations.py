@@ -13,7 +13,7 @@ def test_ci_executa_benchmark_e_publica_artefato() -> None:
 
     assert "scripts/benchmark_postgis.py" in workflow
     assert "scripts/import_territories.py" in workflow
-    assert "actions/upload-artifact@v4" in workflow
+    assert "actions/upload-artifact@v5" in workflow
 
 
 def test_migracao_cria_territorios_com_indice_espacial() -> None:

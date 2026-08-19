@@ -33,7 +33,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@v4
       - run: docker build --tag geo-intelligence-api:ci .
-      - uses: aquasecurity/trivy-action@0.36.0
+      - uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: geo-intelligence-api:ci
           format: table

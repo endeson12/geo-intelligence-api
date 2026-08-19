@@ -36,6 +36,17 @@ def test_ci_executa_ciclo_real_de_migracao_com_dados_legados() -> None:
     assert "ix_territories_geom_gist" in verifier
 
 
+def test_verificador_destrutivo_exige_banco_dedicado_e_opt_in() -> None:
+    workflow = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
+    verifier = Path("scripts/verify_migrations.py").read_text(encoding="utf-8")
+
+    assert "MIGRATION_TEST_ALLOW_DESTRUCTIVE" in verifier
+    assert ".endswith(" in verifier
+    assert '"_migration_test"' in verifier
+    assert "geo_migration_test" in workflow
+    assert 'MIGRATION_TEST_ALLOW_DESTRUCTIVE: "1"' in workflow
+
+
 def test_migracao_reconstroi_indices_sem_bloquear_escritas() -> None:
     migration = Path("migrations/versions/0005_concurrent_indexes.py").read_text(encoding="utf-8")
 

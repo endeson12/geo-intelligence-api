@@ -3,8 +3,7 @@ from scripts.benchmark_postgis import extract_plan_nodes, normalize_database_url
 
 def test_normaliza_url_sqlalchemy_para_psycopg() -> None:
     assert (
-        normalize_database_url("postgresql+psycopg://localhost/geo")
-        == "postgresql://localhost/geo"
+        normalize_database_url("postgresql+psycopg://localhost/geo") == "postgresql://localhost/geo"
     )
 
 

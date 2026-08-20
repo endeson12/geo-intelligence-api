@@ -158,7 +158,7 @@ def test_import_exige_api_key() -> None:
 def test_import_rejeita_geojson_invalido() -> None:
     response = TestClient(app).post(
         "/api/v1/import/geojson",
-        headers={"X-API-Key": "change-me"},
+        headers={"X-API-Key": get_settings().api_key},
         json={
             "type": "FeatureCollection",
             "features": [
@@ -351,6 +351,35 @@ def test_cobertura_por_territorio_inexistente_retorna_404() -> None:
         app.dependency_overrides.clear()
 
     assert response.status_code == 404
+
+
+def test_lista_bairros_oficiais_por_municipio() -> None:
+    db = FakeDB(
+        [
+            {
+                "code": "2211001094",
+                "name": "Centro",
+                "territory_type": "bairro",
+                "parent_code": "2211001",
+                "source": "IBGE — Malha de Bairros do Censo 2022",
+                "acquired_at": "2026-08-20",
+            }
+        ]
+    )
+    app.dependency_overrides[get_db] = lambda: db
+    try:
+        response = TestClient(app).get(
+            "/api/v1/territories",
+            params={"territory_type": "bairro", "parent_code": "2211001", "limit": 200},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json()[0]["nome"] == "Centro"
+    assert response.json()[0]["tipo"] == "bairro"
+    assert response.json()[0]["codigo_pai"] == "2211001"
+    assert "ORDER BY name, code" in db.queries[0]
 
 
 def test_mapa_disponivel_e_consulta_cobertura() -> None:

@@ -45,7 +45,14 @@ class Territory(Base):
     license: Mapped[str] = mapped_column(String(200))
     acquired_at: Mapped[str] = mapped_column(String(40))
     quality: Mapped[str] = mapped_column(Text)
+    territory_type: Mapped[str] = mapped_column(String(40), default="municipio")
+    parent_code: Mapped[str | None] = mapped_column(
+        ForeignKey("territories.code", ondelete="CASCADE"), nullable=True
+    )
     geom: Mapped[Any] = mapped_column(Geometry("MULTIPOLYGON", srid=4326, spatial_index=False))
     imported_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
+    )
+    __table_args__ = (
+        Index("ix_territories_type_parent_name", "territory_type", "parent_code", "name"),
     )

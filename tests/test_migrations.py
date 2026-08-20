@@ -55,3 +55,18 @@ def test_migracao_reconstroi_indices_sem_bloquear_escritas() -> None:
     assert "DROP INDEX CONCURRENTLY" in migration
     assert "ix_facilities_geog_gist" in migration
     assert "ix_territories_geom_gist" in migration
+
+
+def test_migracao_classifica_territorios_e_relaciona_pai() -> None:
+    migration = Path("migrations/versions/0006_territory_hierarchy.py").read_text(encoding="utf-8")
+
+    assert '"territory_type"' in migration
+    assert '"parent_code"' in migration
+    assert "ix_territories_type_parent_name" in migration
+    assert '"territory_type", "parent_code", "name"' in migration
+
+
+def test_ci_importa_bairros_oficiais_no_postgis() -> None:
+    workflow = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
+
+    assert "data/ibge-teresina-neighborhoods.geojson" in workflow

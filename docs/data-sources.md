@@ -37,6 +37,31 @@ Importação reproduzível após as migrações:
 uv run python scripts/import_territories.py data/ibge-teresina-boundary.geojson
 ```
 
+### Bairros do Censo 2022 — IBGE
+
+`data/ibge-teresina-neighborhoods.geojson` contém **123 bairros** filtrados por `CD_MUN = '2211001'` da Malha de Bairros do Censo Demográfico 2022 para o Piauí.
+
+- **Fonte primária:** IBGE/GeoFTP, `PI_bairros_CD2022.gpkg`;
+- **Publicação observada:** `2024-11-12T20:08:12Z`;
+- **Tamanho da fonte:** `1.003.520` bytes;
+- **SHA-256 da fonte completa:** `cfd26ee37c8ca666e12eb5719ebdb2e0f7b108ded722cadc716e2ee82e347309`;
+- **CRS de origem verificado:** SIRGAS 2000, `EPSG:4674`;
+- **CRS derivado:** `EPSG:4326`, compatível com o contrato da API;
+- **Validação:** 123 códigos únicos, 123 geometrias válidas, nenhuma geometria vazia;
+- **Base de reutilização:** Decreto 8.777/2016; não foi atribuído um identificador CC/SPDX inexistente;
+- **Atribuição:** IBGE, Malha de Bairros do Censo Demográfico 2022, Piauí.
+
+Preparação e importação reproduzíveis:
+
+```bash
+uv run --no-project --python 3.12 --with geopandas --with pyogrio \
+  python scripts/prepare_ibge_neighborhoods.py PI_bairros_CD2022.gpkg \
+  data/ibge-teresina-neighborhoods.geojson
+uv run python scripts/import_territories.py data/ibge-teresina-neighborhoods.geojson
+```
+
+Esses polígonos constituem uma **divisão censitária oficial do IBGE referente a 2022**. Eles não devem ser descritos como cadastro jurídico municipal vigente sem comparação com legislação e fonte municipal atual.
+
 ## Reproduzir a coleta
 
 ```bash

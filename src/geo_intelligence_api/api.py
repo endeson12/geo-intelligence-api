@@ -1,5 +1,6 @@
 import hashlib
 import json
+import secrets
 from typing import Annotated, Any
 from uuid import uuid4
 
@@ -149,6 +150,43 @@ def datasets(db: DB) -> list[dict[str, Any]]:
     return [dict(row) for row in rows]
 
 
+@router.get("/territories")
+def territories(
+    db: DB,
+    territory_type: str | None = Query(None, max_length=40),
+    parent_code: str | None = Query(None, max_length=20),
+    limit: int = Query(200, ge=1, le=500),
+) -> list[dict[str, Any]]:
+    rows = (
+        db.execute(
+            text(
+                """SELECT code, name, territory_type, parent_code, source, acquired_at
+                FROM territories
+                WHERE (CAST(:territory_type AS varchar) IS NULL
+                       OR territory_type = CAST(:territory_type AS varchar))
+                  AND (CAST(:parent_code AS varchar) IS NULL
+                       OR parent_code = CAST(:parent_code AS varchar))
+                ORDER BY name, code
+                LIMIT :limit"""
+            ),
+            {"territory_type": territory_type, "parent_code": parent_code, "limit": limit},
+        )
+        .mappings()
+        .all()
+    )
+    return [
+        {
+            "codigo": row["code"],
+            "nome": row["name"],
+            "tipo": row["territory_type"],
+            "codigo_pai": row["parent_code"],
+            "fonte": row["source"],
+            "adquirido_em": row["acquired_at"],
+        }
+        for row in rows
+    ]
+
+
 @router.get("/territories/{code}/coverage")
 def territory_coverage(
     code: str,
@@ -238,7 +276,7 @@ def import_geojson(
     x_api_key: Annotated[str | None, Header()] = None,
     settings: Settings = Depends(get_settings),
 ) -> dict[str, Any]:
-    if not x_api_key or x_api_key != settings.api_key:
+    if not x_api_key or not secrets.compare_digest(x_api_key, settings.api_key):
         raise HTTPException(
             status.HTTP_401_UNAUTHORIZED, "API key inválida", headers={"WWW-Authenticate": "ApiKey"}
         )

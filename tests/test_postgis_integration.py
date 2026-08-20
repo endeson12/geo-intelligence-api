@@ -154,3 +154,12 @@ def test_consultas_e_importacao_em_postgis_real() -> None:
     assert [
         page["equipamentos"]["features"][0]["properties"]["nome"] for page in filtered_pages
     ] == ["Unidade C", "Unidade D"]
+
+    neighborhoods = client.get(
+        "/api/v1/territories",
+        params={"territory_type": "bairro", "parent_code": "2211001", "limit": 200},
+    )
+    assert neighborhoods.status_code == 200
+    assert len(neighborhoods.json()) == 123
+    assert {item["codigo"] for item in neighborhoods.json()} >= {"2211001094", "2211001083"}
+    assert all(item["codigo_pai"] == "2211001" for item in neighborhoods.json())

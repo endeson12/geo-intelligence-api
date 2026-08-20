@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from scripts.import_territories import parse_territory
+from scripts.import_territories import parse_territories, parse_territory
 
 SOURCE = Path("data/ibge-teresina-boundary.geojson")
 
@@ -79,3 +79,115 @@ def test_rejeita_limite_com_coordenadas_3d(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="coordenadas devem ser bidimensionais"):
         parse_territory(path)
+
+
+def test_parse_colecao_de_bairros_com_metadados_por_feicao(tmp_path: Path) -> None:
+    payload = json.loads(SOURCE.read_text(encoding="utf-8"))
+    geometry = payload["features"][0]["geometry"]
+    payload["metadata"].pop("territorial_code")
+    payload["metadata"].pop("name")
+    payload["metadata"].update({"territory_type": "bairro", "parent_code": "2211001"})
+    payload["features"] = [
+        {
+            "type": "Feature",
+            "properties": {"territorial_code": "2211001001", "name": "Bairro A"},
+            "geometry": geometry,
+        },
+        {
+            "type": "Feature",
+            "properties": {"territorial_code": "2211001002", "name": "Bairro B"},
+            "geometry": geometry,
+        },
+    ]
+    path = tmp_path / "neighborhoods.geojson"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    records = parse_territories(path)
+
+    assert [record["code"] for record in records] == ["2211001001", "2211001002"]
+    assert all(record["territory_type"] == "bairro" for record in records)
+    assert all(record["parent_code"] == "2211001" for record in records)
+
+
+def test_dataset_oficial_de_bairros_de_teresina() -> None:
+    path = Path("data/ibge-teresina-neighborhoods.geojson")
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    records = parse_territories(path)
+
+    assert len(records) == 123
+    assert len({record["code"] for record in records}) == 123
+    assert payload["metadata"]["source_crs"] == "EPSG:4674"
+    assert payload["metadata"]["crs"] == "EPSG:4326"
+    assert payload["metadata"]["source_sha256"] == (
+        "cfd26ee37c8ca666e12eb5719ebdb2e0f7b108ded722cadc716e2ee82e347309"
+    )
+    assert all(record["parent_code"] == "2211001" for record in records)
+
+
+def test_colecao_ordena_pai_antes_do_filho_e_rejeita_ciclo(tmp_path: Path) -> None:
+    base_metadata = {
+        "source": "IBGE",
+        "source_url": "https://ibge.gov.br/fonte",
+        "source_version": "2022",
+        "license": "dados abertos",
+        "acquired_at": "2026-08-20",
+        "quality": "teste",
+        "crs": "EPSG:4326",
+    }
+
+    def feature(code: str, parent: str | None) -> dict[str, object]:
+        properties: dict[str, object] = {
+            "territorial_code": code,
+            "name": code,
+            "territory_type": "bairro" if parent else "municipio",
+        }
+        if parent:
+            properties["parent_code"] = parent
+        return {
+            "type": "Feature",
+            "properties": properties,
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [[[0, 0], [1, 0], [1, 1], [0, 0]]],
+            },
+        }
+
+    path = tmp_path / "hierarchy.geojson"
+    path.write_text(
+        json.dumps(
+            {
+                "type": "FeatureCollection",
+                "metadata": base_metadata,
+                "features": [feature("filho", "pai"), feature("pai", None)],
+            }
+        ),
+        encoding="utf-8",
+    )
+    assert [record["code"] for record in parse_territories(path)] == ["pai", "filho"]
+
+    path.write_text(
+        json.dumps(
+            {
+                "type": "FeatureCollection",
+                "metadata": base_metadata,
+                "features": [feature("a", "b"), feature("b", "a")],
+            }
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="ciclo"):
+        parse_territories(path)
+
+
+def test_colecao_rejeita_codigo_longo_e_autorreferencia(tmp_path: Path) -> None:
+    payload = json.loads(Path("data/ibge-teresina-boundary.geojson").read_text(encoding="utf-8"))
+    payload["features"][0]["properties"] = {
+        "territorial_code": "x" * 21,
+        "name": "Inválido",
+        "parent_code": "x" * 21,
+    }
+    path = tmp_path / "invalid.geojson"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="20 caracteres"):
+        parse_territories(path)

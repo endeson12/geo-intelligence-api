@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Demonstração estática de cobertura territorial com uma amostra versionada do OpenStreetMap.">
   <title>Geo Intelligence API — demonstração territorial</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIINfQ3ynhBi6t5YuWTA9Q7iXt2uMZkCQWw=" crossorigin="">
+  <link rel="stylesheet" href="vendor/leaflet.css">
   <style>
     :root{color-scheme:dark;--bg:#07111f;--panel:#0d1b2d;--line:#223b55;--text:#eef6ff;--muted:#9fb3c8;--cyan:#36d1dc;--green:#4ade80;--amber:#fbbf24}
     *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 Inter,ui-sans-serif,system-ui,sans-serif} .layout{display:grid;grid-template-columns:370px minmax(0,1fr);height:clamp(620px,100vh,900px);overflow:hidden}.map-wrap{min-width:0;min-height:0;height:100%;overflow:hidden}.panel{min-height:0;overflow-y:auto;padding:32px;background:linear-gradient(160deg,#0d1b2d,#091523);border-right:1px solid var(--line);z-index:500}.eyebrow{font-size:12px;letter-spacing:.15em;color:var(--cyan);font-weight:800}.panel h1{font-size:31px;line-height:1.08;margin:10px 0}.lead{color:var(--muted)}.notice{border:1px solid #725b15;background:#2a220d;color:#fde68a;padding:12px;border-radius:10px;margin:20px 0}.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:20px 0}.stat{background:#10243a;border:1px solid var(--line);border-radius:10px;padding:14px}.stat strong{display:block;font-size:24px;color:var(--green)}label{display:block;margin:14px 0 5px;font-weight:700}select{width:100%;padding:11px;background:#0b1828;color:var(--text);border:1px solid var(--line);border-radius:8px}.status{margin-top:18px;padding:12px;border-radius:8px;background:#10243a;border-left:3px solid var(--cyan)}.links{display:flex;gap:16px;margin-top:24px}.links a{color:var(--cyan)}#map{height:100%;min-height:0}.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:#10243a;color:var(--text)}@media(max-width:800px){.layout{grid-template-columns:1fr}.panel{border-right:0}.map-wrap,#map{height:68vh;min-height:520px}}
@@ -16,7 +16,7 @@
     <aside class="panel">
       <div class="eyebrow">INTELIGÊNCIA TERRITORIAL</div>
       <h1>Cobertura de equipamentos de saúde</h1>
-      <p class="lead">Explore 20 pontos da fotografia OSM e o limite municipal simplificado do IBGE incluídos no projeto. Clique no mapa para avaliar uma cobertura radial.</p>
+      <p class="lead">Explore 20 pontos da fotografia OSM, o limite municipal simplificado e 123 bairros da divisão censitária oficial de 2022 do IBGE. Clique no mapa para avaliar uma cobertura radial.</p>
       <div class="notice"><strong>Demonstração estática.</strong> O cálculo visual roda no navegador com Haversine. A API FastAPI e as consultas PostGIS são validadas separadamente na CI pública.</div>
       <div class="stats"><div class="stat"><strong id="total">—</strong>pontos visíveis</div><div class="stat"><strong id="covered">—</strong>no raio</div></div>
       <label for="type">Tipo</label><select id="type"><option value="">Todos</option></select>
@@ -26,7 +26,7 @@
     </aside>
     <section class="map-wrap" aria-label="Mapa territorial"><div id="map"></div></section>
   </main>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="vendor/leaflet.js"></script>
   <script>
     const map=L.map('map').setView([-5.09,-42.80],13);let data,points=[],circle;
     window.addEventListener('resize',()=>map.invalidateSize());
@@ -41,11 +41,19 @@
       root.append(name,document.createElement('br'),document.createTextNode(String(feature.properties.tipo??'Tipo não informado')),document.createElement('br'),source);
       return root;
     }
+    function territoryPopupContent(feature){
+      const root=document.createElement('div'),name=document.createElement('strong'),source=document.createElement('small');
+      name.textContent=String(feature.properties.name??'Bairro sem nome');
+      source.textContent='IBGE — Malha de Bairros do Censo 2022';
+      root.append(name,document.createElement('br'),source);
+      return root;
+    }
     function render(){markers.clearLayers();const type=document.querySelector('#type').value;points=data.features.filter(f=>!type||f.properties.tipo===type);for(const f of points){const [lon,lat]=f.geometry.coordinates;L.circleMarker([lat,lon],{radius:7,color:'#07111f',weight:2,fillColor:'#36d1dc',fillOpacity:.92}).bindPopup(popupContent(f)).addTo(markers)}document.querySelector('#total').textContent=points.length;document.querySelector('#covered').textContent='—';document.querySelector('#status').textContent='Clique no mapa para calcular a cobertura.'}
     Promise.all([
       fetch('data/osm-teresina-health.geojson').then(r=>{if(!r.ok)throw Error('amostra OSM indisponível');return r.json()}),
-      fetch('data/ibge-teresina-boundary.geojson').then(r=>{if(!r.ok)throw Error('limite IBGE indisponível');return r.json()})
-    ]).then(([pointsData,boundary])=>{data=pointsData;L.geoJSON(boundary,{style:{color:'#fbbf24',weight:2,dashArray:'7 6',fillOpacity:.025}}).addTo(map).bindPopup('Limite municipal simplificado — IBGE');const types=[...new Set(data.features.map(f=>f.properties.tipo))].sort();for(const t of types){const option=document.createElement('option');option.value=String(t);option.textContent=String(t);document.querySelector('#type').append(option)}render()}).catch(e=>document.querySelector('#status').textContent=`Erro ao carregar dados: ${String(e.message)}`);
+      fetch('data/ibge-teresina-boundary.geojson').then(r=>{if(!r.ok)throw Error('limite IBGE indisponível');return r.json()}),
+      fetch('data/ibge-teresina-neighborhoods.geojson').then(r=>{if(!r.ok)throw Error('bairros IBGE indisponíveis');return r.json()})
+    ]).then(([pointsData,boundary,neighborhoods])=>{data=pointsData;const municipalLayer=L.geoJSON(boundary,{style:{color:'#fbbf24',weight:2,dashArray:'7 6',fillOpacity:.025}}).addTo(map).bindPopup('Limite municipal simplificado — IBGE');const neighborhoodLayer=L.geoJSON(neighborhoods,{style:{color:'#60a5fa',weight:1,fillColor:'#2563eb',fillOpacity:.04},onEachFeature:(feature,layer)=>layer.bindPopup(territoryPopupContent(feature))}).addTo(map);L.control.layers(null,{'Limite municipal':municipalLayer,'Bairros IBGE 2022':neighborhoodLayer},{collapsed:false}).addTo(map);const types=[...new Set(data.features.map(f=>f.properties.tipo))].sort();for(const t of types){const option=document.createElement('option');option.value=String(t);option.textContent=String(t);document.querySelector('#type').append(option)}render()}).catch(e=>document.querySelector('#status').textContent=`Erro ao carregar dados: ${String(e.message)}`);
     document.querySelector('#type').addEventListener('change',render);
     map.on('click',e=>{if(!data)return;coverage.clearLayers();const radius=Number(document.querySelector('#radius').value),center=[e.latlng.lat,e.latlng.lng],found=points.filter(f=>{const [lon,lat]=f.geometry.coordinates;return haversine(center,[lat,lon])<=radius});circle=L.circle(e.latlng,{radius,color:'#fbbf24',fillOpacity:.08}).addTo(coverage);for(const f of found){const [lon,lat]=f.geometry.coordinates;L.circleMarker([lat,lon],{radius:10,color:'#4ade80',fillColor:'#4ade80',fillOpacity:.25}).addTo(coverage)}document.querySelector('#covered').textContent=found.length;document.querySelector('#status').textContent=`${found.length} ponto(s) em ${(radius/1000).toFixed(0)} km. Resultado exploratório, não oficial.`});
   </script>

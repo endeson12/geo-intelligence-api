@@ -7,6 +7,11 @@ def test_demo_publica_declara_escopo_e_usa_amostra_versionada() -> None:
     assert "Demonstração estática" in html
     assert "data/osm-teresina-health.geojson" in html
     assert "data/ibge-teresina-boundary.geojson" in html
+    assert "data/ibge-teresina-neighborhoods.geojson" in html
+    assert "123 bairros" in html
+    assert "L.control.layers" in html
+    assert 'href="vendor/leaflet.css"' in html
+    assert 'src="vendor/leaflet.js"' in html
     assert "L.geoJSON" in html
     assert "OpenStreetMap" in html
     assert "haversine" in html

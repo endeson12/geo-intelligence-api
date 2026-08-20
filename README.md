@@ -29,13 +29,14 @@ A página pública usa a fotografia OSM versionada, o limite municipal simplific
 - catálogo de datasets e proveniência;
 - filtros por tipo e `bbox`, proximidade e cobertura radial com uma única métrica geodésica;
 - consulta paginada de equipamentos dentro do território com `ST_Covers`;
-- limite oficial simplificado do município de Teresina obtido da API do IBGE;
+- limite oficial simplificado do município e **123 bairros do Censo 2022** obtidos do IBGE;
 - amostra comunitária OSM com atribuição e relatório de qualidade;
 - GiST para geometria e índice funcional GiST compatível com `geom::geography`, reconstruídos concorrentemente em atualização;
 - validação territorial de CRS, topologia, geometria vazia e faixas WGS84;
 - renderização segura da demo sem interpolar atributos externos como HTML;
 - benchmark `EXPLAIN (ANALYZE, BUFFERS)` reproduzível e publicado como artefato da CI;
 - Ruff, mypy, pytest, PostGIS real, `pip-audit`, SBOM CycloneDX, build da imagem e Trivy;
+- limite real de corpo por bytes, rate limiting local, comparação constante da API key e recusa de chave padrão fora de desenvolvimento;
 - mapa, logs JSON, request ID, Prometheus e health checks.
 
 ## Dados e proveniência
@@ -44,6 +45,7 @@ A página pública usa a fotografia OSM versionada, o limite municipal simplific
 |---|---|---|---|
 | `osm-teresina-health.geojson` | OpenStreetMap/ODbL | 20 equipamentos de saúde | amostra comunitária, não cadastro oficial |
 | `ibge-teresina-boundary.geojson` | API de Malhas do IBGE | limite municipal em consulta `ST_Covers` | malha simplificada, não cadastral |
+| `ibge-teresina-neighborhoods.geojson` | IBGE, Malha de Bairros do Censo 2022 | 123 bairros oficiais da divisão censitária | não equivale necessariamente ao cadastro municipal vigente |
 | `scripts/seed.py` | sintético | inicialização técnica | dados inventados, sem uso decisório |
 
 Consulte [fontes, coleta, atribuição e limitações](docs/data-sources.md). O relatório versionado observou **20/20 feições OSM válidas e 0 duplicidades exatas**; isso não comprova completude, atualidade ou acurácia posicional.
@@ -72,6 +74,7 @@ Pré-requisitos: Docker com Compose. Troque as credenciais da cópia local do am
 cp .env.example .env
 docker compose up --build -d
 docker compose exec api python scripts/import_territories.py data/ibge-teresina-boundary.geojson
+docker compose exec api python scripts/import_territories.py data/ibge-teresina-neighborhoods.geojson
 docker compose exec api python scripts/seed.py
 curl http://localhost:8000/health/ready
 ```
@@ -96,6 +99,7 @@ Acesse Swagger em `/docs`, mapa conectado à API em `/map` e métricas em `/metr
 | GET | `/api/v1/facilities?tipo=&bbox=xmin,ymin,xmax,ymax` | FeatureCollection filtrada |
 | GET | `/api/v1/facilities/nearest?lat=&lon=&limit=&raio_m=` | vizinhos por distância geodésica |
 | GET | `/api/v1/coverage?lat=&lon=&raio_m=&tipo=` | feições e resumo no raio |
+| GET | `/api/v1/territories?territory_type=bairro&parent_code=2211001` | catálogo dos 123 bairros do Censo 2022 |
 | GET | `/api/v1/territories/2211001/coverage?tipo=&limit=&offset=` | polígono, proveniência e equipamentos paginados |
 | GET | `/api/v1/datasets` | lotes importados e metadados |
 | POST | `/api/v1/import/geojson` | importação idempotente por hash, protegida por API key |
@@ -116,6 +120,7 @@ uv run pip-audit
 uv run cyclonedx-py environment --output-reproducible --of JSON -o sbom.cdx.json
 uv run alembic upgrade head
 uv run python scripts/import_territories.py data/ibge-teresina-boundary.geojson
+uv run python scripts/import_territories.py data/ibge-teresina-neighborhoods.geojson
 uv run python scripts/data_quality.py data/osm-teresina-health.geojson
 uv run python scripts/benchmark_postgis.py --output benchmark-postgis.json
 ```
@@ -132,6 +137,8 @@ O benchmark reproduzível mais recente usou 100 mil pontos sintéticos e encontr
 ## Segurança e governança
 
 - SQL parametrizado, rollback, validação WGS84/topológica e limite lógico de feições;
+- corpo HTTP limitado pelos bytes efetivamente recebidos e rate limiting local por cliente;
+- chave padrão recusada em homologação/produção e comparação da API key em tempo constante;
 - paginação territorial com limite máximo de 500 equipamentos por resposta;
 - atributos OSM inseridos na demo como texto, sem `innerHTML` ou interpolação de HTML;
 - ciclo Alembic real na CI (`0001 → head → 0002 → head`) preservando dados legados;
@@ -146,18 +153,19 @@ Veja [SECURITY.md](SECURITY.md).
 ## Limitações honestas
 
 - não existe backend público permanente; o Pages é uma demonstração estática;
-- API key única, sem RBAC, quotas, WAF ou rate limiting;
-- limite de 10 mil feições é lógico, não limite de bytes no proxy;
+- API key única, sem OIDC/RBAC, WAF ou auditoria persistente por ator;
+- rate limiting é local ao processo e precisa de gateway/Redis em múltiplas réplicas;
+- o limite de bytes da aplicação deve ser repetido no proxy reverso;
 - cobertura radial não é isócrona viária;
-- OSM pode estar incompleto e o limite do IBGE é simplificado;
+- OSM pode estar incompleto; o limite municipal é simplificado e os bairros refletem a divisão censitária de 2022;
 - reimportação idêntica é idempotente, mas ainda não há upsert por identificador externo entre versões diferentes;
 - benchmark e CI não equivalem a carga contínua ou produção institucional.
 
 ## Roadmap
 
 1. upsert por identificador externo e política explícita de reconciliação entre versões;
-2. OIDC/RBAC, rate limiting e limite de corpo no proxy;
-3. setores/bairros com referência temporal e indicadores agregados;
+2. OIDC/RBAC, rate limiting distribuído e limite de corpo também no proxy;
+3. indicadores agregados por bairro com referência temporal e validação municipal;
 4. isócronas de rede, importação assíncrona e OGC API Features;
 5. SLOs somente após existir uma implantação real e observável.
 

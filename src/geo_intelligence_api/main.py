@@ -14,14 +14,21 @@ from .api import router
 from .config import get_settings
 from .database import get_db
 from .logging import configure_logging
+from .security import BodyLimitMiddleware, InMemoryRateLimitMiddleware
 
 settings = get_settings()
 configure_logging(settings.log_level)
 logger = logging.getLogger(__name__)
 app = FastAPI(
     title=settings.app_name,
-    version="0.4.1",
+    version="0.5.0",
     description="Serviço geoespacial demonstrativo para análise territorial",
+)
+app.add_middleware(BodyLimitMiddleware, max_body_bytes=settings.max_body_bytes)
+app.add_middleware(
+    InMemoryRateLimitMiddleware,
+    requests_per_minute=settings.requests_per_minute,
+    excluded_paths={"/health/live", "/health/ready", "/metrics"},
 )
 app.include_router(router, prefix="/api/v1", tags=["geoespacial"])
 

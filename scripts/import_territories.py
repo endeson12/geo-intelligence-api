@@ -17,8 +17,6 @@ from geo_intelligence_api.database import SessionLocal
 REQUIRED_METADATA = {
     "source",
     "source_url",
-    "territorial_code",
-    "name",
     "license",
     "acquired_at",
     "quality",
@@ -26,21 +24,10 @@ REQUIRED_METADATA = {
 }
 
 
-def parse_territory(path: Path) -> dict[str, Any]:
-    payload = json.loads(path.read_text(encoding="utf-8"))
-    if payload.get("type") != "FeatureCollection" or len(payload.get("features", [])) != 1:
-        raise ValueError("esperado FeatureCollection com exatamente uma feição")
-    metadata = payload.get("metadata")
-    missing = (
-        REQUIRED_METADATA - metadata.keys() if isinstance(metadata, dict) else REQUIRED_METADATA
-    )
-    if not isinstance(metadata, dict) or missing:
-        missing_text = ", ".join(sorted(missing)) if isinstance(metadata, dict) else "todos"
-        raise ValueError(f"metadata de proveniência ausente: {missing_text}")
-    geometry = payload["features"][0].get("geometry", {})
+def _validated_geometry(feature: dict[str, Any], crs: str) -> dict[str, Any]:
+    geometry = feature.get("geometry", {})
     if geometry.get("type") not in {"Polygon", "MultiPolygon"}:
         raise ValueError("o limite deve ser Polygon ou MultiPolygon")
-    crs = str(metadata["crs"]).upper()
     if crs != "EPSG:4326":
         raise ValueError("CRS incompatível: esperado EPSG:4326")
     territorial_geometry = shape(geometry)
@@ -53,31 +40,78 @@ def parse_territory(path: Path) -> dict[str, Any]:
             else explain_validity(territorial_geometry)
         )
         raise ValueError(f"geometria territorial inválida: {reason}")
-    min_lon, min_lat, max_lon, max_lat = territorial_geometry.bounds
-    if not all(math.isfinite(value) for value in territorial_geometry.bounds) or not (
+    bounds = territorial_geometry.bounds
+    min_lon, min_lat, max_lon, max_lat = bounds
+    if not all(math.isfinite(value) for value in bounds) or not (
         -180 <= min_lon <= max_lon <= 180 and -90 <= min_lat <= max_lat <= 90
     ):
         raise ValueError("coordenadas fora dos limites WGS84")
-    return {
-        "code": str(metadata["territorial_code"]),
-        "name": str(metadata["name"]),
-        "source": str(metadata["source"]),
-        "source_url": str(metadata["source_url"]),
-        "license": str(metadata["license"]),
-        "acquired_at": str(metadata["acquired_at"]),
-        "quality": str(metadata["quality"]),
-        "crs": crs,
-        "geometry": geometry,
-    }
+    return geometry
 
 
-def import_territory(record: dict[str, Any]) -> None:
-    params = {**record, "geometry": json.dumps(record["geometry"], separators=(",", ":"))}
-    statement = text(
+def parse_territories(path: Path) -> list[dict[str, Any]]:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    features = payload.get("features", [])
+    if payload.get("type") != "FeatureCollection" or not isinstance(features, list) or not features:
+        raise ValueError("esperado FeatureCollection com pelo menos uma feição")
+    metadata = payload.get("metadata")
+    missing = (
+        REQUIRED_METADATA - metadata.keys() if isinstance(metadata, dict) else REQUIRED_METADATA
+    )
+    if not isinstance(metadata, dict) or missing:
+        missing_text = ", ".join(sorted(missing)) if isinstance(metadata, dict) else "todos"
+        raise ValueError(f"metadata de proveniência ausente: {missing_text}")
+
+    crs = str(metadata["crs"]).upper()
+    records: list[dict[str, Any]] = []
+    seen_codes: set[str] = set()
+    for feature in features:
+        properties = feature.get("properties") or {}
+        code = properties.get("territorial_code") or metadata.get("territorial_code")
+        name = properties.get("name") or metadata.get("name")
+        if not code or not name:
+            raise ValueError("territorial_code e name são obrigatórios por coleção ou feição")
+        code = str(code)
+        if code in seen_codes:
+            raise ValueError(f"código territorial duplicado: {code}")
+        seen_codes.add(code)
+        records.append(
+            {
+                "code": code,
+                "name": str(name),
+                "source": str(metadata["source"]),
+                "source_url": str(metadata["source_url"]),
+                "license": str(metadata["license"]),
+                "acquired_at": str(metadata["acquired_at"]),
+                "quality": str(metadata["quality"]),
+                "crs": crs,
+                "territory_type": str(
+                    properties.get("territory_type")
+                    or metadata.get("territory_type")
+                    or "municipio"
+                ),
+                "parent_code": properties.get("parent_code") or metadata.get("parent_code"),
+                "geometry": _validated_geometry(feature, crs),
+            }
+        )
+    return records
+
+
+def parse_territory(path: Path) -> dict[str, Any]:
+    records = parse_territories(path)
+    if len(records) != 1:
+        raise ValueError("esperado FeatureCollection com exatamente uma feição")
+    return records[0]
+
+
+def _statement() -> Any:
+    return text(
         """INSERT INTO territories
-        (code, name, source, source_url, license, acquired_at, quality, geom)
+        (code, name, source, source_url, license, acquired_at, quality,
+         territory_type, parent_code, geom)
         VALUES
         (:code, :name, :source, :source_url, :license, :acquired_at, :quality,
+         :territory_type, :parent_code,
          ST_Multi(ST_SetSRID(ST_GeomFromGeoJSON(:geometry), 4326)))
         ON CONFLICT (code) DO UPDATE SET
           name = EXCLUDED.name,
@@ -86,23 +120,38 @@ def import_territory(record: dict[str, Any]) -> None:
           license = EXCLUDED.license,
           acquired_at = EXCLUDED.acquired_at,
           quality = EXCLUDED.quality,
+          territory_type = EXCLUDED.territory_type,
+          parent_code = EXCLUDED.parent_code,
           geom = EXCLUDED.geom,
           imported_at = now()"""
     )
+
+
+def import_territories(records: list[dict[str, Any]]) -> None:
+    statement = _statement()
     with SessionLocal() as db:
-        db.execute(statement, params)
+        for record in records:
+            params = {
+                **record,
+                "geometry": json.dumps(record["geometry"], separators=(",", ":")),
+            }
+            db.execute(statement, params)
         db.commit()
+
+
+def import_territory(record: dict[str, Any]) -> None:
+    import_territories([record])
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("path", type=Path)
     args = parser.parse_args()
-    record = parse_territory(args.path)
-    import_territory(record)
+    records = parse_territories(args.path)
+    import_territories(records)
     print(
-        f"status=importado territorio={record['code']} nome={record['name']} "
-        f"fonte={record['source']}"
+        f"status=importado territorios={len(records)} "
+        f"tipo={records[0]['territory_type']} fonte={records[0]['source']}"
     )
 
 

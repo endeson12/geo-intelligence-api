@@ -2,6 +2,21 @@
 
 Todas as mudanças relevantes deste projeto demonstrativo são registradas aqui.
 
+## [0.5.0] — 2026-08-20
+
+### Adicionado
+
+- 123 bairros oficiais da Malha de Bairros do Censo 2022 do IBGE, com SHA-256, CRS e proveniência;
+- hierarquia de territórios e endpoint de catálogo por tipo e município;
+- limite do corpo HTTP pelos bytes efetivamente recebidos;
+- rate limiting local com cabeçalhos de quota e `Retry-After`.
+
+### Segurança
+
+- ambientes de homologação e produção recusam a chave demonstrativa ou chaves menores que 32 caracteres;
+- API key comparada em tempo constante;
+- documentação distingue controles locais de OIDC/RBAC, gateway, WAF e quotas distribuídas.
+
 ## [0.4.1] — 2026-08-19
 
 ### Corrigido

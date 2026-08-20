@@ -10,7 +10,7 @@ Não publique vulnerabilidades em issues. Envie um aviso privado ao mantenedor p
 
 ## Modelo de ameaça resumido
 
-Principais riscos: chave de importação exposta, GeoJSON abusivo, exaustão por consultas espaciais, SQL injection, conteúdo externo no mapa, vazamento de localização e dependências/tiles externos. Há validação e limite de payload lógico, paginação territorial, renderização segura como texto, SQL parametrizado, transação, usuário de contêiner não-root e headers defensivos. Para produção ainda são obrigatórios TLS no proxy, OIDC/RBAC, rate limiting, limites de corpo, rotação de segredo, backups testados e observabilidade protegida.
+Principais riscos: chave de importação exposta, GeoJSON abusivo, exaustão por consultas espaciais, SQL injection, conteúdo externo no mapa, vazamento de localização e dependências/tiles externos. Há validação, limite real de corpo, rate limiting local, paginação territorial, renderização segura como texto, SQL parametrizado, transação, usuário de contêiner não-root e headers defensivos. Para produção ainda são obrigatórios TLS no proxy, OIDC/RBAC, rate limiting distribuído, limites equivalentes no proxy, rotação de segredo, backups testados e observabilidade protegida.
 
 ## Ativos e fronteiras de confiança
 
@@ -24,6 +24,8 @@ Principais riscos: chave de importação exposta, GeoJSON abusivo, exaustão por
 - validação Pydantic, CRS explícito, coordenadas estritamente 2D, topologia, geometria vazia e limites WGS84/quantidade;
 - consultas parametrizadas e índice espacial;
 - resposta territorial paginada e limitada a 500 feições;
+- corpo limitado pelos bytes efetivamente recebidos e quota local por endereço do cliente;
+- recusa da chave padrão fora de desenvolvimento e comparação em tempo constante;
 - popups e opções da demo construídos com DOM seguro e `textContent`;
 - ciclo real de upgrade/downgrade na CI e reconstrução concorrente de índices espaciais;
 - importação idempotente por hash, lote versionado e rollback;
@@ -33,4 +35,4 @@ Principais riscos: chave de importação exposta, GeoJSON abusivo, exaustão por
 
 ## Riscos aceitos no protótipo
 
-Não há OIDC, RBAC, rate limiting, WAF, limite de corpo em bytes, criptografia de backup nem trilha de auditoria por ator. `/metrics` também deve ficar fora da internet pública em uma implantação real. Essas limitações impedem classificar o projeto como pronto para produção.
+Não há OIDC, RBAC, WAF, rate limiting distribuído, criptografia de backup nem trilha de auditoria por ator. O controle atual é local a uma única instância e não confia em cabeçalhos de proxy. `/metrics` também deve ficar fora da internet pública em uma implantação real. Essas limitações impedem classificar o projeto como pronto para produção.

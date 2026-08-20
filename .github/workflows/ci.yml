@@ -36,8 +36,10 @@ jobs:
       - run: uv run python scripts/data_quality.py data/osm-teresina-health.geojson --output /tmp/data-quality-report.json
       - name: Verificar ciclo real de migrações
         run: uv run python scripts/verify_migrations.py
-      - name: Importar limite oficial do IBGE
-        run: uv run python scripts/import_territories.py data/ibge-teresina-boundary.geojson
+      - name: Importar territórios oficiais do IBGE
+        run: |
+          uv run python scripts/import_territories.py data/ibge-teresina-boundary.geojson
+          uv run python scripts/import_territories.py data/ibge-teresina-neighborhoods.geojson
       - name: Benchmark GiST reproduzível
         run: uv run python scripts/benchmark_postgis.py --output benchmark-postgis.json
       - uses: actions/upload-artifact@v7

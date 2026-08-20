@@ -25,7 +25,7 @@ Principais riscos: chave de importação exposta, GeoJSON abusivo, exaustão por
 - consultas parametrizadas e índice espacial;
 - resposta territorial paginada e limitada a 500 feições;
 - corpo limitado pelos bytes efetivamente recebidos e quota local por endereço do cliente;
-- recusa da chave padrão fora de desenvolvimento e comparação em tempo constante;
+- chave explícita de 32+ caracteres em qualquer ambiente e comparação em tempo constante;
 - popups e opções da demo construídos com DOM seguro e `textContent`;
 - ciclo real de upgrade/downgrade na CI e reconstrução concorrente de índices espaciais;
 - importação idempotente por hash, lote versionado e rollback;

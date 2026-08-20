@@ -13,7 +13,7 @@ Todas as mudanças relevantes deste projeto demonstrativo são registradas aqui.
 
 ### Segurança
 
-- ambientes de homologação e produção recusam a chave demonstrativa ou chaves menores que 32 caracteres;
+- toda execução exige API key explícita com pelo menos 32 caracteres;
 - API key comparada em tempo constante;
 - documentação distingue controles locais de OIDC/RBAC, gateway, WAF e quotas distribuídas.
 

@@ -36,7 +36,7 @@ A página pública usa a fotografia OSM versionada, o limite municipal simplific
 - renderização segura da demo sem interpolar atributos externos como HTML;
 - benchmark `EXPLAIN (ANALYZE, BUFFERS)` reproduzível e publicado como artefato da CI;
 - Ruff, mypy, pytest, PostGIS real, `pip-audit`, SBOM CycloneDX, build da imagem e Trivy;
-- limite real de corpo por bytes, rate limiting local, comparação constante da API key e recusa de chave padrão fora de desenvolvimento;
+- limite real de corpo por bytes, rate limiting local, comparação constante e API key explícita com pelo menos 32 caracteres;
 - mapa, logs JSON, request ID, Prometheus e health checks.
 
 ## Dados e proveniência
@@ -72,6 +72,8 @@ Pré-requisitos: Docker com Compose. Troque as credenciais da cópia local do am
 
 ```bash
 cp .env.example .env
+# Gere uma chave: python -c "import secrets; print(secrets.token_urlsafe(32))"
+# Copie o valor gerado para API_KEY no arquivo .env.
 docker compose up --build -d
 docker compose exec api python scripts/import_territories.py data/ibge-teresina-boundary.geojson
 docker compose exec api python scripts/import_territories.py data/ibge-teresina-neighborhoods.geojson
@@ -138,7 +140,7 @@ O benchmark reproduzível mais recente usou 100 mil pontos sintéticos e encontr
 
 - SQL parametrizado, rollback, validação WGS84/topológica e limite lógico de feições;
 - corpo HTTP limitado pelos bytes efetivamente recebidos e rate limiting local por cliente;
-- chave padrão recusada em homologação/produção e comparação da API key em tempo constante;
+- API key explícita de 32+ caracteres em qualquer ambiente e comparação em tempo constante;
 - paginação territorial com limite máximo de 500 equipamentos por resposta;
 - atributos OSM inseridos na demo como texto, sem `innerHTML` ou interpolação de HTML;
 - ciclo Alembic real na CI (`0001 → head → 0002 → head`) preservando dados legados;

@@ -14,7 +14,7 @@ from .api import router
 from .config import get_settings
 from .database import get_db
 from .logging import configure_logging
-from .security import BodyLimitMiddleware, InMemoryRateLimitMiddleware
+from .security import BodyLimitMiddleware, ImportAPIKeyMiddleware, InMemoryRateLimitMiddleware
 
 settings = get_settings()
 configure_logging(settings.log_level)
@@ -30,6 +30,7 @@ app.add_middleware(
     requests_per_minute=settings.requests_per_minute,
     excluded_paths={"/health/live", "/health/ready", "/metrics"},
 )
+app.add_middleware(ImportAPIKeyMiddleware, api_key=settings.api_key)
 app.include_router(router, prefix="/api/v1", tags=["geoespacial"])
 
 

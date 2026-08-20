@@ -18,7 +18,7 @@ services:
     build: .
     environment:
       DATABASE_URL: postgresql+psycopg://geo:${POSTGRES_PASSWORD:-geo}@db:5432/geo
-      API_KEY: ${API_KEY:-change-me}
+      API_KEY: ${API_KEY:?defina API_KEY com pelo menos 32 caracteres}
       ENVIRONMENT: ${ENVIRONMENT:-development}
       MAX_BODY_BYTES: ${MAX_BODY_BYTES:-1048576}
       REQUESTS_PER_MINUTE: ${REQUESTS_PER_MINUTE:-120}

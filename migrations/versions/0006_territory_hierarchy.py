@@ -26,14 +26,14 @@ def upgrade() -> None:
         ondelete="CASCADE",
     )
     op.create_index(
-        "ix_territories_parent_type",
+        "ix_territories_type_parent_name",
         "territories",
-        ["parent_code", "territory_type", "name"],
+        ["territory_type", "parent_code", "name"],
     )
 
 
 def downgrade() -> None:
-    op.drop_index("ix_territories_parent_type", table_name="territories")
+    op.drop_index("ix_territories_type_parent_name", table_name="territories")
     op.drop_constraint("fk_territories_parent_code", "territories", type_="foreignkey")
     op.drop_column("territories", "parent_code")
     op.drop_column("territories", "territory_type")

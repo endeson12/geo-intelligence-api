@@ -62,7 +62,8 @@ def test_migracao_classifica_territorios_e_relaciona_pai() -> None:
 
     assert '"territory_type"' in migration
     assert '"parent_code"' in migration
-    assert "ix_territories_parent_type" in migration
+    assert "ix_territories_type_parent_name" in migration
+    assert '"territory_type", "parent_code", "name"' in migration
 
 
 def test_ci_importa_bairros_oficiais_no_postgis() -> None:

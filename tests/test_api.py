@@ -158,7 +158,7 @@ def test_import_exige_api_key() -> None:
 def test_import_rejeita_geojson_invalido() -> None:
     response = TestClient(app).post(
         "/api/v1/import/geojson",
-        headers={"X-API-Key": "change-me"},
+        headers={"X-API-Key": get_settings().api_key},
         json={
             "type": "FeatureCollection",
             "features": [

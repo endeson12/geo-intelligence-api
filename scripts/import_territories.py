@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+from collections import deque
 from pathlib import Path
 from typing import Any
 
@@ -49,6 +50,40 @@ def _validated_geometry(feature: dict[str, Any], crs: str) -> dict[str, Any]:
     return geometry
 
 
+def _validate_and_order_hierarchy(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    by_code = {record["code"]: record for record in records}
+    children: dict[str, list[str]] = {code: [] for code in by_code}
+    indegree = {code: 0 for code in by_code}
+
+    for record in records:
+        code = record["code"]
+        parent = record["parent_code"]
+        if not 1 <= len(code) <= 20 or (parent is not None and len(parent) > 20):
+            raise ValueError("códigos territoriais devem ter no máximo 20 caracteres")
+        if not 1 <= len(record["name"]) <= 160:
+            raise ValueError("nome territorial deve ter entre 1 e 160 caracteres")
+        if not 1 <= len(record["territory_type"]) <= 40:
+            raise ValueError("tipo territorial deve ter entre 1 e 40 caracteres")
+        if parent == code:
+            raise ValueError(f"território não pode referenciar a si próprio: {code}")
+        if parent in by_code:
+            children[parent].append(code)
+            indegree[code] += 1
+
+    pending = deque(code for code in by_code if indegree[code] == 0)
+    ordered_codes: list[str] = []
+    while pending:
+        code = pending.popleft()
+        ordered_codes.append(code)
+        for child in children[code]:
+            indegree[child] -= 1
+            if indegree[child] == 0:
+                pending.append(child)
+    if len(ordered_codes) != len(records):
+        raise ValueError("ciclo detectado na hierarquia territorial")
+    return [by_code[code] for code in ordered_codes]
+
+
 def parse_territories(path: Path) -> list[dict[str, Any]]:
     payload = json.loads(path.read_text(encoding="utf-8"))
     features = payload.get("features", [])
@@ -90,11 +125,15 @@ def parse_territories(path: Path) -> list[dict[str, Any]]:
                     or metadata.get("territory_type")
                     or "municipio"
                 ),
-                "parent_code": properties.get("parent_code") or metadata.get("parent_code"),
+                "parent_code": (
+                    str(properties.get("parent_code") or metadata.get("parent_code"))
+                    if properties.get("parent_code") or metadata.get("parent_code")
+                    else None
+                ),
                 "geometry": _validated_geometry(feature, crs),
             }
         )
-    return records
+    return _validate_and_order_hierarchy(records)
 
 
 def parse_territory(path: Path) -> dict[str, Any]:
@@ -130,7 +169,7 @@ def _statement() -> Any:
 def import_territories(records: list[dict[str, Any]]) -> None:
     statement = _statement()
     with SessionLocal() as db:
-        for record in records:
+        for record in _validate_and_order_hierarchy(records):
             params = {
                 **record,
                 "geometry": json.dumps(record["geometry"], separators=(",", ":")),
